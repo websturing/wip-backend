@@ -20,4 +20,9 @@ class AuthController extends Controller
         $data = $this->service->getAll();
         return response()->json(['message' => 'Success', 'data' => $data]);
     }
+
+    public function login(Request $request)
+    {
+        return response()->json(['message' => 'Login attempt', 'data' => $request->all()]);
+    }
 }

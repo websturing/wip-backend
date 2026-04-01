@@ -25,4 +25,6 @@ class AuthSeeder extends Seeder
         echo "📧 Email: admin@test.com\n";
         echo "🔑 Pass: password123\n";
     }
+
+    // php artisan db:seed --class="App\Features\Auth\Seeders\AuthSeeder"
 }
