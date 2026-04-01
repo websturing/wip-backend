@@ -35,7 +35,7 @@ class AclService
                 $allPermissions[] = [
                     'feature' => $feature,
                     'action' => $action,
-                    'name' => strtolower($feature) . ':' . $action
+                    'name' => strtolower($feature) . '.' . $action
                 ];
             }
         }
