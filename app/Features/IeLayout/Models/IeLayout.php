@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Features\IeLayout\Models;
+
+use App\Features\User\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class IeLayout extends Model
+{
+    use HasFactory;
+
+    protected $table = 'ie_layouts';
+
+    protected $fillable = [
+        'name',
+        'price',
+        'is_gl_number',
+        'gl_number',
+        'department',
+        'created_by_id',
+        'updated_by_id',
+    ];
+
+    /**
+     * Get the time studies (details) for this layout.
+     */
+    public function details(): HasMany
+    {
+        return $this->hasMany(TimeStudy::class, 'ie_layout_id');
+    }
+
+    /**
+     * Get the user who created this layout.
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+    /**
+     * Get the user who last updated this layout.
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by_id');
+    }
+}
