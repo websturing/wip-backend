@@ -1,0 +1,48 @@
+name: Deploy Laravel Backend
+
+on:
+  push:
+    branches: [ "production", "dev" ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted # Mengacu pada runner yang Anda install di VM
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deployment Script
+        run: |
+          # 1. Tentukan path berdasarkan branch
+          if [ "${{ github.ref }}" == "refs/heads/production" ]; then
+            APP_PATH="/var/www/wip-live"
+          else
+            APP_PATH="/var/www/wip-dev"
+          fi
+
+          echo "Deploying to $APP_PATH"
+          
+          # 2. Masuk ke direktori project
+          cd $APP_PATH
+
+          # 3. Ambil perubahan terbaru dari GitHub
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
+
+          # 4. Operasi Laravel (Standar Production)
+          # Gunakan --no-dev agar package testing tidak ikut terinstal
+          composer install --no-dev --optimize-autoloader
+
+          # Jalankan migrasi database otomatis
+          php artisan migrate --force
+
+          # Optimasi cache (agar akses lebih cepat)
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+
+          # Opsional: Jika Anda menggunakan queue (Redis/Database)
+          # php artisan queue:restart
+
+          echo "Deployment successful!"
