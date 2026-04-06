@@ -16,9 +16,9 @@ jobs:
         run: |
           # 1. Tentukan path berdasarkan branch
           if [ "${{ github.ref }}" == "refs/heads/production" ]; then
-            APP_PATH="/var/www/wip-live"
+            APP_PATH="/var/www/wip-Backend"
           else
-            APP_PATH="/var/www/wip-dev"
+            APP_PATH="/var/www/wip-Backend-dev"
           fi
 
           echo "Deploying to $APP_PATH"
