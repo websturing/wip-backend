@@ -46,3 +46,20 @@ jobs:
           # php artisan queue:restart
 
           echo "Deployment successful!"
+
+      - name: PM2 Restart
+        run: |
+          if [ "${{ github.ref_name }}" == "production" ]; then
+            PROCESS_NAME="laravel-prod"
+            PORT=8000
+          else
+            PROCESS_NAME="laravel-dev"
+            PORT=8001
+          fi
+
+          # Cek apakah process sudah ada, jika ada restart, jika tidak start baru
+          pm2 delete $PROCESS_NAME || true
+          pm2 start "php artisan serve --port=$PORT" --name "$PROCESS_NAME"
+          pm2 save
+
+          echo "Deployment successful for $PROCESS_NAME on port $PORT!"
