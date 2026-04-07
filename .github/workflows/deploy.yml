@@ -50,7 +50,7 @@ jobs:
           # 5. Restart PM2
           # --cwd memastikan PM2 mencari vendor/autoload.php di folder project, bukan folder runner
           pm2 delete $PROCESS_NAME || true
-          pm2 start "php artisan serve --port=$PORT" --name "$PROCESS_NAME" --cwd "$APP_PATH"
+          pm2 start "php artisan serve --port=$PORT --host=0.0.0.0" --name "$PROCESS_NAME" --cwd "$APP_PATH"
           pm2 save
 
           echo "🚀 Deployment successful for $PROCESS_NAME on port $PORT!"
