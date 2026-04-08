@@ -24,6 +24,7 @@ Route::prefix('gl-groups')->group(function () {
 
 Route::prefix('lots')->group(function () {
     Route::get('/', [LotController::class, 'index']);
+    Route::get('/list', [LotController::class, 'list']);
     Route::post('/', [LotController::class, 'store']);
     Route::get('/{id}', [LotController::class, 'show']);
     Route::put('/{id}', [LotController::class, 'update']);

@@ -21,6 +21,20 @@ class LotController extends Controller
         ]);
     }
 
+    public function list()
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => Lot::all()->map(function ($lot) {
+                return [
+                    'id' => $lot->id,
+                    'lot_code' => $lot->lot_code,
+                    'lot_number' => $lot->lot_number
+                ];
+            })
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
