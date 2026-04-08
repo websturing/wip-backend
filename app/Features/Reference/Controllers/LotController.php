@@ -26,6 +26,7 @@ class LotController extends Controller
         $validated = $request->validate([
             'gl_id' => 'required|exists:gl_groups,id',
             'lot_number' => 'required|string',
+            'gmt_qty' => 'nullable|integer',
             'is_cancelled' => 'boolean',
         ]);
 
@@ -48,11 +49,14 @@ class LotController extends Controller
     public function update(Request $request, $id)
     {
         $lot = Lot::findOrFail($id);
-        $lot->update($request->validate([
+        $validated = $request->validate([
             'gl_id' => 'required|exists:gl_groups,id',
             'lot_number' => 'required|string',
+            'gmt_qty' => 'nullable|integer',
             'is_cancelled' => 'boolean',
-        ]));
+        ]);
+
+        $lot->update($validated);
 
         return response()->json([
             'status' => 'success',
