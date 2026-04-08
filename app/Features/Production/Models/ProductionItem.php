@@ -3,18 +3,21 @@
 namespace App\Features\Production\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Features\Reference\Models\Lot;
 
 class ProductionItem extends Model
 {
-    protected $fillable = ['production_id', 'gl_number', 'color'];
+    use HasUuids;
+    protected $fillable = ['production_id', 'lot_id', 'color'];
 
-    public function production()
+    public function lot()
     {
-        return $this->belongsTo(Production::class);
+        return $this->belongsTo(Lot::class);
     }
 
-    public function sizes()
+    public function details()
     {
-        return $this->hasMany(ProductionItemSize::class);
+        return $this->hasMany(ProductionItemDetail::class);
     }
 }

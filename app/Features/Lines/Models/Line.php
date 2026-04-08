@@ -3,14 +3,10 @@
 namespace App\Features\Lines\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Features\Production\Models\Production;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Line extends Model
 {
+    use HasUuids;
     protected $fillable = ['name', 'location'];
-
-    public function productions()
-    {
-        return $this->hasMany(Production::class, 'line_id');
-    }
 }

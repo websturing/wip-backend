@@ -8,16 +8,42 @@ use Illuminate\Http\Request;
 
 class LotController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $lastImport = Lot::max('updated_at');
+        
+        $query = Lot::with('glGroup.customer')->latest();
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('lot_number', 'LIKE', "%$search%")
+                  ->orWhereHas('glGroup', function($sq) use ($search) {
+                      $sq->where('gl_number', 'LIKE', "%$search%");
+                  });
+            });
+        }
 
         return response()->json([
             'status' => 'success',
-            'data' => Lot::with('glGroup.customer')->latest()->paginate(20),
+            'data' => $query->paginate($request->get('per_page', 50)),
             'meta' => [
                 'last_import' => $lastImport
             ]
+        ]);
+    }
+
+    public function list()
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => Lot::all()->map(function ($lot) {
+                return [
+                    'id' => $lot->id,
+                    'lot_code' => $lot->lot_code,
+                    'lot_number' => $lot->lot_number
+                ];
+            })
         ]);
     }
 
@@ -26,6 +52,7 @@ class LotController extends Controller
         $validated = $request->validate([
             'gl_id' => 'required|exists:gl_groups,id',
             'lot_number' => 'required|string',
+            'gmt_qty' => 'nullable|integer',
             'is_cancelled' => 'boolean',
         ]);
 
@@ -48,11 +75,14 @@ class LotController extends Controller
     public function update(Request $request, $id)
     {
         $lot = Lot::findOrFail($id);
-        $lot->update($request->validate([
+        $validated = $request->validate([
             'gl_id' => 'required|exists:gl_groups,id',
             'lot_number' => 'required|string',
+            'gmt_qty' => 'nullable|integer',
             'is_cancelled' => 'boolean',
-        ]));
+        ]);
+
+        $lot->update($validated);
 
         return response()->json([
             'status' => 'success',

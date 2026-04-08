@@ -3,30 +3,21 @@
 namespace App\Features\Production\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Features\Lines\Models\Line;
 
 class Production extends Model
 {
-    protected $fillable = ['production_date', 'line_id', 'created_by', 'updated_by'];
+    use HasUuids;
+    protected $fillable = ['line_id', 'production_date'];
 
     public function line()
     {
-        return $this->belongsTo(Line::class, 'line_id');
+        return $this->belongsTo(Line::class);
     }
 
     public function items()
     {
-        return $this->hasMany(ProductionItem::class, 'production_id');
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
+        return $this->hasMany(ProductionItem::class);
     }
 }

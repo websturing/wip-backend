@@ -14,8 +14,11 @@ Route::prefix('customers')->group(function () {
     Route::delete('/{id}', [CustomerController::class, 'destroy']);
 });
 
+use App\Features\Reference\Controllers\GlSummaryController;
+
 Route::prefix('gl-groups')->group(function () {
     Route::get('/', [GlGroupController::class, 'index']);
+    Route::get('/{id}/summary', [GlSummaryController::class, 'show']);
     Route::post('/', [GlGroupController::class, 'store']);
     Route::get('/{id}', [GlGroupController::class, 'show']);
     Route::put('/{id}', [GlGroupController::class, 'update']);
@@ -24,6 +27,7 @@ Route::prefix('gl-groups')->group(function () {
 
 Route::prefix('lots')->group(function () {
     Route::get('/', [LotController::class, 'index']);
+    Route::get('/list', [LotController::class, 'list']);
     Route::post('/', [LotController::class, 'store']);
     Route::get('/{id}', [LotController::class, 'show']);
     Route::put('/{id}', [LotController::class, 'update']);
