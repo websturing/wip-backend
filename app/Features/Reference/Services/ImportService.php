@@ -41,13 +41,18 @@ class ImportService
             'gl' => $this->findColumn($header, ['gl', 'gl group', 'gl number']),
             'lot' => $this->findColumn($header, ['lot', 'lot number']),
             'gmt_qty' => $this->findColumn($header, ['gmtqty', 'gmt_qty', 'gmt qty', 'quantity', 'qty']),
+            'style_no' => $this->findColumn($header, ['styleno', 'style_no', 'style no', 'style']),
+            'brand' => $this->findColumn($header, ['brand']),
+            'sam' => $this->findColumn($header, ['sam']),
+            'delivery_date' => $this->findColumn($header, ['deldate', 'delivery', 'delivery date', 'ship date']),
+            'order_date' => $this->findColumn($header, ['orderdate', 'order date']),
         ];
 
         // Fill in defaults if not found (based on previous mapping)
         $indices['customer'] = $indices['customer'] ?? 5; // Column F
         $indices['gl'] = $indices['gl'] ?? 4; // Column E
         $indices['lot'] = $indices['lot'] ?? 16; // Column Q
-        $indices['gmt_qty'] = $indices['gmt_qty'] ?? 17; // Default to Column R if not found
+        $indices['gmt_qty'] = $indices['gmt_qty'] ?? 17;
 
         DB::beginTransaction();
         try {
@@ -64,6 +69,11 @@ class ImportService
                     'lot_number' => trim($row[$indices['lot']] ?? ''),
                     'gmt_qty' => trim($row[$indices['gmt_qty']] ?? null),
                     'is_cancelled' => false,
+                    'style_no' => trim($row[$indices['style_no']] ?? null),
+                    'brand' => trim($row[$indices['brand']] ?? null),
+                    'sam' => trim($row[$indices['sam']] ?? null),
+                    'delivery_date' => trim($row[$indices['delivery_date']] ?? null),
+                    'order_date' => trim($row[$indices['order_date']] ?? null),
                 ];
 
                 $this->summary['total']++;
@@ -76,9 +86,36 @@ class ImportService
                 }
 
                 // 3. Normalization
-                $data['gl_number'] = strtoupper($data['gl_number']);
+                $data['gl_number'] = strtoupper(substr($data['gl_number'], -5));
                 $data['lot_number'] = str_pad($data['lot_number'], 2, '0', STR_PAD_LEFT);
                 $data['gmt_qty'] = filter_var($data['gmt_qty'], FILTER_VALIDATE_INT) === false ? null : (int)$data['gmt_qty'];
+                // Date normalization (handle Excel date numbers or strings)
+                try {
+                    if (!empty($data['delivery_date'])) {
+                        if (is_numeric($data['delivery_date'])) {
+                            $data['delivery_date'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['delivery_date'])->format('Y-m-d');
+                        } else {
+                            // Try to parse string date (e.g. 1/8/2026)
+                            $data['delivery_date'] = \Carbon\Carbon::parse(str_replace(['\\', '/'], '-', $data['delivery_date']))->format('Y-m-d');
+                        }
+                    } else {
+                        $data['delivery_date'] = null;
+                    }
+
+                    if (!empty($data['order_date'])) {
+                        if (is_numeric($data['order_date'])) {
+                            $data['order_date'] = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($data['order_date'])->format('Y-m-d');
+                        } else {
+                            $data['order_date'] = \Carbon\Carbon::parse(str_replace(['\\', '/'], '-', $data['order_date']))->format('Y-m-d');
+                        }
+                    } else {
+                        $data['order_date'] = null;
+                    }
+                } catch (\Exception $e) {
+                    // If date parsing fails, set to null instead of crashing
+                    $data['delivery_date'] = null;
+                    $data['order_date'] = null;
+                }
 
                 // 4. Processing
                 $this->processRow($data);
@@ -134,6 +171,11 @@ class ImportService
         $lotData = [
             'is_cancelled' => $data['is_cancelled'],
             'gmt_qty' => $data['gmt_qty'],
+            'style_no' => $data['style_no'],
+            'brand' => $data['brand'],
+            'sam' => $data['sam'],
+            'delivery_date' => $data['delivery_date'],
+            'order_date' => $data['order_date'],
         ];
 
         if ($lot) {

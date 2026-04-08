@@ -14,7 +14,7 @@ class LotController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => Lot::with('glGroup.customer')->latest()->paginate(20),
+            'data' => Lot::with('glGroup.customer')->latest()->paginate(50),
             'meta' => [
                 'last_import' => $lastImport
             ]

@@ -9,7 +9,18 @@ class Lot extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['gl_id', 'lot_number', 'lot_code', 'gmt_qty', 'is_cancelled'];
+    protected $fillable = [
+        'gl_id', 
+        'lot_number', 
+        'lot_code', 
+        'gmt_qty', 
+        'is_cancelled',
+        'style_no',
+        'brand',
+        'sam',
+        'delivery_date',
+        'order_date'
+    ];
 
     protected static function boot()
     {
