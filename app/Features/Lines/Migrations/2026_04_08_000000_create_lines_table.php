@@ -10,12 +10,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('lines', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('name');
-            $table->string('location')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('lines')) {
+            Schema::create('lines', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->string('name');
+                $table->string('location')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     public function down(): void
