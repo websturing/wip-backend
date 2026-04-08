@@ -8,13 +8,25 @@ use Illuminate\Http\Request;
 
 class LotController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $lastImport = Lot::max('updated_at');
+        
+        $query = Lot::with('glGroup.customer')->latest();
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('lot_number', 'LIKE', "%$search%")
+                  ->orWhereHas('glGroup', function($sq) use ($search) {
+                      $sq->where('gl_number', 'LIKE', "%$search%");
+                  });
+            });
+        }
 
         return response()->json([
             'status' => 'success',
-            'data' => Lot::with('glGroup.customer')->latest()->paginate(50),
+            'data' => $query->paginate($request->get('per_page', 50)),
             'meta' => [
                 'last_import' => $lastImport
             ]
