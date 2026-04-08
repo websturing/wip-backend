@@ -15,11 +15,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // 1. Create Default User
+        $this->call(\App\Features\Auth\Seeders\AuthSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // 2. Setup ACL (Roles & Permissions)
+        $this->call(\App\Features\Acl\Seeders\RoleSeeder::class);
+
+        // 3. Setup Production Lines
+        $this->call(\Database\Seeders\LineSeeder::class);
     }
 }
