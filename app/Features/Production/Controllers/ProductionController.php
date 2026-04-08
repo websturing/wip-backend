@@ -10,11 +10,18 @@ use Illuminate\Support\Facades\DB;
 
 class ProductionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $date = $request->get('date', now()->toDateString());
+
+        $data = Production::with(['line', 'items.lot.glGroup', 'items.details'])
+            ->whereDate('production_date', $date)
+            ->latest()
+            ->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => Production::with(['line', 'items.lot', 'items.details'])->latest()->paginate(10)
+            'data' => $data
         ]);
     }
 
@@ -23,6 +30,27 @@ class ProductionController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => Line::all()
+        ]);
+    }
+
+    public function summary(Request $request)
+    {
+        $validated = $request->validate([
+            'lot_id' => 'required|exists:lots,id',
+            'color' => 'required|string',
+        ]);
+
+        $summary = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+            ->where('production_items.lot_id', $validated['lot_id'])
+            ->where('production_items.color', $validated['color'])
+            ->select('size_name', DB::raw('SUM(qty_input) as total_input'), DB::raw('SUM(qty_output) as total_output'))
+            ->groupBy('size_name')
+            ->get()
+            ->keyBy('size_name');
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $summary
         ]);
     }
 
