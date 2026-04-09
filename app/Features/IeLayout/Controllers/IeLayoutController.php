@@ -21,9 +21,9 @@ class IeLayoutController extends Controller
     /**
      * Display a listing of IE layouts.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $data = $this->service->getAll();
+        $data = $this->service->getAll($request->all());
         return response()->json(['message' => 'Success', 'data' => $data]);
     }
 

@@ -16,9 +16,8 @@ class IeLayout extends Model
 
     protected $fillable = [
         'name',
+        'lot_id',
         'price',
-        'is_gl_number',
-        'gl_number',
         'department',
         'total_smv',
         'man_power_sewer',
@@ -28,6 +27,14 @@ class IeLayout extends Model
         'created_by_id',
         'updated_by_id',
     ];
+
+    /**
+     * Get the lot associated with this layout.
+     */
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(\App\Features\Reference\Models\Lot::class, 'lot_id');
+    }
 
     /**
      * Get the time studies (details) for this layout.

@@ -16,11 +16,11 @@ class IeLayoutService
     }
 
     /**
-     * Get all layouts.
+     * Get all layouts with optional filtering.
      */
-    public function getAll(): Collection
+    public function getAll(array $filters = []): Collection
     {
-        return $this->repository->getAll();
+        return $this->repository->getAll($filters);
     }
 
     /**

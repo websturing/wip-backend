@@ -21,9 +21,8 @@ class CreateIeLayoutRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'lot_id' => ['nullable', 'exists:lots,id'],
             'price' => ['required', 'numeric'],
-            'is_gl_number' => ['required', 'boolean'],
-            'gl_number' => ['nullable', 'string', 'max:255'],
             'department' => ['required', 'string', 'max:255'],
             'total_smv' => ['sometimes', 'numeric'],
             'man_power_sewer' => ['sometimes', 'numeric'],

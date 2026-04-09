@@ -9,7 +9,14 @@ use App\Features\Lines\Models\Line;
 class Production extends Model
 {
     use HasUuids;
-    protected $fillable = ['line_id', 'production_date'];
+    protected $fillable = [
+        'line_id', 
+        'production_date',
+        'man_power_sewer',
+        'man_power_matching',
+        'man_power_qc',
+        'man_power_others'
+    ];
 
     public function line()
     {

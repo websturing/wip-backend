@@ -10,11 +10,17 @@ use Illuminate\Support\Facades\DB;
 class IeLayoutRepository
 {
     /**
-     * Get all IE layouts with their details and related models.
+     * Get all IE layouts with their details and related models, with optional filtering.
      */
-    public function getAll(): Collection
+    public function getAll(array $filters = []): Collection
     {
-        return IeLayout::with(['details.operation', 'createdBy', 'updatedBy'])->get();
+        $query = IeLayout::with(['details.operation', 'createdBy', 'updatedBy', 'lot']);
+
+        if (isset($filters['lot_id'])) {
+            $query->where('lot_id', $filters['lot_id']);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -22,7 +28,7 @@ class IeLayoutRepository
      */
     public function findById(int $id): ?IeLayout
     {
-        return IeLayout::with(['details.operation', 'createdBy', 'updatedBy'])->find($id);
+        return IeLayout::with(['details.operation', 'createdBy', 'updatedBy', 'lot'])->find($id);
     }
 
     /**

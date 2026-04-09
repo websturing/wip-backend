@@ -21,9 +21,8 @@ class UpdateIeLayoutRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'lot_id' => ['nullable', 'exists:lots,id'],
             'price' => ['sometimes', 'required', 'numeric'],
-            'is_gl_number' => ['sometimes', 'required', 'boolean'],
-            'gl_number' => ['nullable', 'string', 'max:255'],
             'department' => ['sometimes', 'required', 'string', 'max:255'],
             'total_smv' => ['sometimes', 'numeric'],
             'man_power_sewer' => ['sometimes', 'numeric'],
