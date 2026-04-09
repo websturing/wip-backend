@@ -41,7 +41,7 @@ class IeLayoutController extends Controller
      */
     public function show($id): JsonResponse
     {
-        $data = $this->service->findById($id);
+        $data = $this->service->findById((int)$id);
         if (!$data) {
             return response()->json(['message' => 'Not Found'], 404);
         }
@@ -53,11 +53,11 @@ class IeLayoutController extends Controller
      */
     public function update(UpdateIeLayoutRequest $request, $id): JsonResponse
     {
-        $updated = $this->service->update($id, $request->validated());
+        $updated = $this->service->update((int)$id, $request->validated());
         if (!$updated) {
             return response()->json(['message' => 'Failed to Update'], 400);
         }
-        $data = $this->service->findById($id);
+        $data = $this->service->findById((int)$id);
         return response()->json(['message' => 'Updated', 'data' => $data]);
     }
 
@@ -66,7 +66,7 @@ class IeLayoutController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        $deleted = $this->service->delete($id);
+        $deleted = $this->service->delete((int)$id);
         if (!$deleted) {
             return response()->json(['message' => 'Failed to Delete'], 400);
         }

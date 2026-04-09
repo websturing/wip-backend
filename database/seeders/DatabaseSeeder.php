@@ -23,5 +23,8 @@ class DatabaseSeeder extends Seeder
 
         // 3. Setup Production Lines
         $this->call(\Database\Seeders\LineSeeder::class);
+
+        // 4. Setup IE Layout Operations
+        $this->call(\App\Features\IeLayout\Seeders\OperationSeeder::class);
     }
 }

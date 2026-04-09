@@ -20,6 +20,11 @@ class IeLayout extends Model
         'is_gl_number',
         'gl_number',
         'department',
+        'total_smv',
+        'man_power_sewer',
+        'man_power_matching',
+        'man_power_qc',
+        'man_power_others',
         'created_by_id',
         'updated_by_id',
     ];
