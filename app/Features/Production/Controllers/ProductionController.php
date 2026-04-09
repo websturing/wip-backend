@@ -59,10 +59,6 @@ class ProductionController extends Controller
         $validated = $request->validate([
             'line_id' => 'required|exists:lines,id',
             'production_date' => 'required|date',
-            'man_power_sewer' => 'nullable|numeric',
-            'man_power_matching' => 'nullable|numeric',
-            'man_power_qc' => 'nullable|numeric',
-            'man_power_others' => 'nullable|numeric',
             'items' => 'required|array',
             'items.*.lot_id' => 'required|exists:lots,id',
             'items.*.color' => 'required|string',
@@ -76,10 +72,10 @@ class ProductionController extends Controller
             $production = Production::create([
                 'line_id' => $validated['line_id'],
                 'production_date' => $validated['production_date'],
-                'man_power_sewer' => $validated['man_power_sewer'] ?? 0,
-                'man_power_matching' => $validated['man_power_matching'] ?? 0,
-                'man_power_qc' => $validated['man_power_qc'] ?? 0,
-                'man_power_others' => $validated['man_power_others'] ?? 0,
+                'man_power_sewer' => 0,
+                'man_power_matching' => 0,
+                'man_power_qc' => 0,
+                'man_power_others' => 0,
             ]);
 
             foreach ($validated['items'] as $itemData) {
@@ -98,35 +94,6 @@ class ProductionController extends Controller
                 'data' => $production->load(['line', 'items.lot', 'items.details'])
             ], 201);
         });
-    }
-
-    public function latestManpower(Request $request)
-    {
-        $validated = $request->validate([
-            'line_id' => 'required|exists:lines,id',
-            'lot_id' => 'required|exists:lots,id',
-            'date' => 'nullable|date',
-        ]);
-
-        $date = $validated['date'] ?? now()->toDateString();
-
-        $latest = Production::where('line_id', $validated['line_id'])
-            ->whereDate('production_date', $date)
-            ->whereHas('items', function($q) use ($validated) {
-                $q->where('lot_id', $validated['lot_id']);
-            })
-            ->latest()
-            ->first();
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $latest ? [
-                'man_power_sewer' => $latest->man_power_sewer,
-                'man_power_matching' => $latest->man_power_matching,
-                'man_power_qc' => $latest->man_power_qc,
-                'man_power_others' => $latest->man_power_others,
-            ] : null
-        ]);
     }
 
     public function destroy($id)
