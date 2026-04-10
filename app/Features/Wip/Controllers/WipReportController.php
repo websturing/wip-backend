@@ -80,19 +80,18 @@ class WipReportController extends Controller
             ->get()
             ->keyBy('lot_id');
 
-        // 5. Fetch Cutting Output (ONLY for the lots being displayed)
-        $uniqueGls = $lots->pluck('glGroup.gl_number')->filter()->unique();
+        // 5. Fetch Cutting Output (ONLY for the lots being displayed - Using GL+Lot)
+        $uniqueLotCodes = $lots->pluck('lot_code')->filter()->unique();
         $cuttingCache = [];
         
-        if ($uniqueGls->isNotEmpty()) {
-            $responses = \Illuminate\Support\Facades\Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($uniqueGls) {
-                foreach ($uniqueGls as $gl) {
-                    $cleanGl = strtoupper(substr($gl, -5));
-                    $pool->as($gl)->timeout(5)->withoutVerifying()->get("http://cutting.glaindonesia.lan/api/summary-by-gl?gl_number={$cleanGl}");
+        if ($uniqueLotCodes->isNotEmpty()) {
+            $responses = \Illuminate\Support\Facades\Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($uniqueLotCodes) {
+                foreach ($uniqueLotCodes as $lotCode) {
+                    $pool->as($lotCode)->timeout(5)->withoutVerifying()->get("http://cutting.glaindonesia.lan/api/summary-by-gl?gl_number={$lotCode}");
                 }
             });
 
-            foreach ($responses as $gl => $response) {
+            foreach ($responses as $lotCode => $response) {
                 if ($response instanceof \Illuminate\Http\Client\Response && $response->successful()) {
                     $resData = $response->json();
                     if (($resData['status'] ?? 0) === 200) {
@@ -103,12 +102,12 @@ class WipReportController extends Controller
                                 $totalCut += (int)($color['total_qty'] ?? $color['qty'] ?? $color['total_cut'] ?? 0);
                             }
                         }
-                        $cuttingCache[$gl] = $totalCut;
+                        $cuttingCache[$lotCode] = $totalCut;
                     } else {
-                        $cuttingCache[$gl] = 'E404';
+                        $cuttingCache[$lotCode] = 'E404';
                     }
                 } else {
-                    $cuttingCache[$gl] = 'E404';
+                    $cuttingCache[$lotCode] = 'E404';
                 }
             }
         }
@@ -116,9 +115,8 @@ class WipReportController extends Controller
         $reportData = $lots->map(function ($lot) use ($sewingSummaries, $packingSummaries, $cuttingCache) {
             $sewing = $sewingSummaries->get($lot->id);
             $packing = $packingSummaries->get($lot->id);
-            $glNo = $lot->glGroup->gl_number ?? null;
             
-            $cuttingAcc = $cuttingCache[$glNo] ?? 0;
+            $cuttingAcc = $cuttingCache[$lot->lot_code] ?? 0;
 
             return [
                 'lot_id' => $lot->id,
