@@ -38,4 +38,9 @@ class Lot extends Model
     {
         return $this->belongsTo(GlGroup::class, 'gl_id');
     }
+
+    public function exportQuantity()
+    {
+        return $this->hasOne(\App\Features\Wip\Models\WipExportQuantity::class, 'lot_id');
+    }
 }
