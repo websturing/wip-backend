@@ -54,6 +54,27 @@ class ProductionController extends Controller
         ]);
     }
 
+    public function bulkSummary(Request $request)
+    {
+        $lotIds = $request->get('lot_ids', []);
+        
+        if (empty($lotIds)) {
+            return response()->json(['status' => 'success', 'data' => []]);
+        }
+
+        $summaries = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+            ->whereIn('production_items.lot_id', $lotIds)
+            ->select('production_items.lot_id', DB::raw('SUM(qty_output) as total_output'))
+            ->groupBy('production_items.lot_id')
+            ->get()
+            ->keyBy('lot_id');
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $summaries
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

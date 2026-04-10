@@ -9,6 +9,7 @@ use App\Features\Production\Controllers\ImportController;
 Route::get('/', [ProductionController::class, 'index']);
 Route::get('/lines', [ProductionController::class, 'lines']);
 Route::get('/summary', [ProductionController::class, 'summary']);
+Route::get('/bulk-summary', [ProductionController::class, 'bulkSummary']);
 Route::post('/', [ProductionController::class, 'store']);
 Route::post('/import', [ImportController::class, 'import']);
 Route::get('/latest-manpower', [ProductionController::class, 'latestManpower']);
