@@ -42,6 +42,8 @@ class ProductivityController extends Controller
             'date' => 'required|date',
             'manpower' => 'required|numeric',
             'plan_manpower' => 'required|numeric',
+            'sewer' => 'required|numeric',
+            'plan_sewer' => 'required|numeric',
             'working_hour' => 'required|numeric',
             'lot_data' => 'required|array|min:1',
             'lot_data.*.lot_id' => 'required|exists:lots,id',
@@ -79,6 +81,8 @@ class ProductivityController extends Controller
         $validated = $request->validate([
             'manpower' => 'sometimes|numeric',
             'plan_manpower' => 'sometimes|numeric',
+            'sewer' => 'sometimes|numeric',
+            'plan_sewer' => 'sometimes|numeric',
             'working_hour' => 'sometimes|numeric',
             'lot_data' => 'sometimes|array',
             'lot_data.*.lot_id' => 'required|exists:lots,id',
@@ -139,6 +143,8 @@ class ProductivityController extends Controller
             'status' => 'success',
             'data' => [
                 'plan_manpower' => $last->plan_manpower,
+                'sewer' => $last->sewer,
+                'plan_sewer' => $last->plan_sewer,
                 'smv' => $pivot ? $pivot->smv : 0,
                 'target_plan' => $pivot ? $pivot->target_plan : 0,
             ]
