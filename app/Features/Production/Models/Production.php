@@ -15,7 +15,8 @@ class Production extends Model
         'man_power_sewer',
         'man_power_matching',
         'man_power_qc',
-        'man_power_others'
+        'man_power_others',
+        'remarks'
     ];
 
     public function line()

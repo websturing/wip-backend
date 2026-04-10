@@ -1,35 +1,28 @@
 <?php
 
-namespace App\Features\Production\Controllers;
+namespace App\Features\Packing\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Features\Production\Models\Production;
-use App\Features\Lines\Models\Line;
+use App\Features\Packing\Models\Packing;
+use App\Features\Packing\Models\PackingItem;
+use App\Features\Packing\Models\PackingItemDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class ProductionController extends Controller
+class PackingController extends Controller
 {
     public function index(Request $request)
     {
         $date = $request->get('date', now()->toDateString());
 
-        $data = Production::with(['line', 'items.lot.glGroup', 'items.details'])
-            ->whereDate('production_date', $date)
+        $data = Packing::with(['items.lot.glGroup', 'items.details'])
+            ->whereDate('packing_date', $date)
             ->latest()
             ->get();
 
         return response()->json([
             'status' => 'success',
             'data' => $data
-        ]);
-    }
-
-    public function lines()
-    {
-        return response()->json([
-            'status' => 'success',
-            'data' => Line::all()
         ]);
     }
 
@@ -40,9 +33,9 @@ class ProductionController extends Controller
             'color' => 'required|string',
         ]);
 
-        $summary = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
-            ->where('production_items.lot_id', $validated['lot_id'])
-            ->where('production_items.color', $validated['color'])
+        $summary = PackingItemDetail::join('packing_items', 'packing_item_details.packing_item_id', '=', 'packing_items.id')
+            ->where('packing_items.lot_id', $validated['lot_id'])
+            ->where('packing_items.color', $validated['color'])
             ->select('size_name', DB::raw('SUM(qty_input) as total_input'), DB::raw('SUM(qty_output) as total_output'))
             ->groupBy('size_name')
             ->get()
@@ -62,10 +55,10 @@ class ProductionController extends Controller
             return response()->json(['status' => 'success', 'data' => []]);
         }
 
-        $summaries = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
-            ->whereIn('production_items.lot_id', $lotIds)
-            ->select('production_items.lot_id', DB::raw('SUM(qty_output) as total_output'))
-            ->groupBy('production_items.lot_id')
+        $summaries = PackingItemDetail::join('packing_items', 'packing_item_details.packing_item_id', '=', 'packing_items.id')
+            ->whereIn('packing_items.lot_id', $lotIds)
+            ->select('packing_items.lot_id', DB::raw('SUM(qty_output) as total_output'))
+            ->groupBy('packing_items.lot_id')
             ->get()
             ->keyBy('lot_id');
 
@@ -78,8 +71,8 @@ class ProductionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'line_id' => 'required|exists:lines,id',
-            'production_date' => 'required|date',
+            'packing_date' => 'required|date',
+            'man_power' => 'nullable|numeric',
             'remarks' => 'nullable|string',
             'items' => 'required|array',
             'items.*.lot_id' => 'required|exists:lots,id',
@@ -91,18 +84,14 @@ class ProductionController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
-            $production = Production::create([
-                'line_id' => $validated['line_id'],
-                'production_date' => $validated['production_date'],
-                'man_power_sewer' => 0,
-                'man_power_matching' => 0,
-                'man_power_qc' => 0,
-                'man_power_others' => 0,
+            $packing = Packing::create([
+                'packing_date' => $validated['packing_date'],
+                'man_power' => $validated['man_power'] ?? 0,
                 'remarks' => $request->get('remarks'),
             ]);
 
             foreach ($validated['items'] as $itemData) {
-                $item = $production->items()->create([
+                $item = $packing->items()->create([
                     'lot_id' => $itemData['lot_id'],
                     'color' => $itemData['color']
                 ]);
@@ -114,14 +103,14 @@ class ProductionController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'data' => $production->load(['line', 'items.lot', 'items.details'])
+                'data' => $packing->load(['items.lot', 'items.details'])
             ], 201);
         });
     }
 
     public function destroy($id)
     {
-        Production::findOrFail($id)->delete();
-        return response()->json(['status' => 'success', 'message' => 'Production log deleted']);
+        Packing::findOrFail($id)->delete();
+        return response()->json(['status' => 'success', 'message' => 'Packing log deleted']);
     }
 }
