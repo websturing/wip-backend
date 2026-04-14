@@ -20,4 +20,9 @@ class ProductionItem extends Model
     {
         return $this->hasMany(ProductionItemDetail::class);
     }
+
+    public function production()
+    {
+        return $this->belongsTo(Production::class);
+    }
 }

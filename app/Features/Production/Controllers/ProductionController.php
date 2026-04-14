@@ -25,6 +25,57 @@ class ProductionController extends Controller
         ]);
     }
 
+    public function dashboard(Request $request)
+    {
+        $range = $request->get('range', 7);
+        $days = (int) $range;
+        $startDate = now()->subDays($days - 1)->toDateString();
+
+        // 1. Last 10 GL/Lot entries
+        $lastEntries = \App\Features\Production\Models\ProductionItem::with(['lot.glGroup.customer', 'production.line'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        // 2. Output chart based on range
+        $outputChartQuery = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+            ->join('productions', 'production_items.production_id', '=', 'productions.id')
+            ->whereDate('productions.production_date', '>=', $startDate)
+            ->select(
+                DB::raw('DATE(productions.production_date) as date_val'),
+                DB::raw('SUM(qty_input) as total_input'),
+                DB::raw('SUM(qty_output) as total_output')
+            )
+            ->groupBy('date_val')
+            ->orderBy('date_val', 'ASC')
+            ->get();
+
+        // Transform chart data to ensure keys match frontend expectations
+        $outputChart = $outputChartQuery->map(fn($item) => [
+            'date' => $item->date_val,
+            'total_input' => $item->total_input,
+            'total_output' => $item->total_output
+        ]);
+
+        // 3. Active lines in the range
+        $activeLines = Production::whereDate('production_date', '>=', $startDate)
+            ->with(['line', 'items.details'])
+            ->get()
+            ->pluck('line')
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'recent_entries' => $lastEntries,
+                'output_chart' => $outputChart,
+                'active_lines' => $activeLines
+            ]
+        ]);
+    }
+
     public function lines()
     {
         return response()->json([
