@@ -50,7 +50,7 @@ class Productivity extends Model
     public function lots()
     {
         return $this->belongsToMany(Lot::class, 'productivity_lots', 'productivity_id', 'lot_id')
-                    ->withPivot(['smv', 'last_step', 'target_plan'])
+                    ->withPivot(['smv', 'last_step', 'target_plan', 'manpower', 'plan_manpower', 'sewer', 'plan_sewer', 'working_hour'])
                     ->withTimestamps();
     }
 }

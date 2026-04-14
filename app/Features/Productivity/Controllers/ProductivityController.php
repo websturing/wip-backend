@@ -50,6 +50,11 @@ class ProductivityController extends Controller
             'lot_data.*.smv' => 'required|numeric',
             'lot_data.*.last_step' => 'required|numeric',
             'lot_data.*.target_plan' => 'required|numeric',
+            'lot_data.*.manpower' => 'sometimes|numeric',
+            'lot_data.*.plan_manpower' => 'sometimes|numeric',
+            'lot_data.*.sewer' => 'sometimes|numeric',
+            'lot_data.*.plan_sewer' => 'sometimes|numeric',
+            'lot_data.*.working_hour' => 'sometimes|numeric',
         ]);
 
         // Primary lot_id for legacy/summary (compatibility)
@@ -65,7 +70,12 @@ class ProductivityController extends Controller
             $syncData[$ld['lot_id']] = [
                 'smv' => $ld['smv'],
                 'last_step' => $ld['last_step'],
-                'target_plan' => $ld['target_plan']
+                'target_plan' => $ld['target_plan'],
+                'manpower' => $ld['manpower'] ?? 0,
+                'plan_manpower' => $ld['plan_manpower'] ?? 0,
+                'sewer' => $ld['sewer'] ?? 0,
+                'plan_sewer' => $ld['plan_sewer'] ?? 0,
+                'working_hour' => $ld['working_hour'] ?? 8,
             ];
         }
         $productivity->lots()->sync($syncData);
@@ -99,7 +109,12 @@ class ProductivityController extends Controller
                 $syncData[$ld['lot_id']] = [
                     'smv' => $ld['smv'],
                     'last_step' => $ld['last_step'],
-                    'target_plan' => $ld['target_plan']
+                    'target_plan' => $ld['target_plan'],
+                    'manpower' => $ld['manpower'] ?? 0,
+                    'plan_manpower' => $ld['plan_manpower'] ?? 0,
+                    'sewer' => $ld['sewer'] ?? 0,
+                    'plan_sewer' => $ld['plan_sewer'] ?? 0,
+                    'working_hour' => $ld['working_hour'] ?? 8,
                 ];
             }
             $productivity->lots()->sync($syncData);
