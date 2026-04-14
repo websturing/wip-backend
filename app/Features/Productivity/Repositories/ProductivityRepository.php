@@ -8,7 +8,7 @@ class ProductivityRepository
 {
     public function getAll($date = null)
     {
-        $query = Productivity::with(['line', 'lot.glGroup', 'lots.glGroup']);
+        $query = Productivity::with(['line', 'lot.glGroup.customer', 'lots.glGroup.customer']);
         
         if ($date) {
             $query->whereDate('date', $date);
@@ -19,7 +19,7 @@ class ProductivityRepository
 
     public function findById($id)
     {
-        return Productivity::with(['line', 'lot.glGroup', 'lots.glGroup'])->findOrFail($id);
+        return Productivity::with(['line', 'lot.glGroup.customer', 'lots.glGroup.customer'])->findOrFail($id);
     }
 
     public function create(array $data)

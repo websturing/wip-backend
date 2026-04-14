@@ -14,7 +14,7 @@ class ProductionController extends Controller
     {
         $date = $request->get('date', now()->toDateString());
 
-        $data = Production::with(['line', 'items.lot.glGroup', 'items.details'])
+        $data = Production::with(['line', 'items.lot.glGroup.customer', 'items.details'])
             ->whereDate('production_date', $date)
             ->latest()
             ->get();
