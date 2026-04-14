@@ -16,11 +16,18 @@ class TimeStudy extends Model
     protected $fillable = [
         'ie_layout_id',
         'operation_id',
+        'section',
         'handling_position',
+        'handling_position_value',
         'length',
         'sequence',
         'machine_type',
         'machine_turn',
+        'man_power',
+        'std_time',
+        'target_hour',
+        'target_day',
+        'smv',
         'created_by_id',
         'updated_by_id',
     ];

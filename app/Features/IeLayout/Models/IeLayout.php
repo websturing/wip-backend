@@ -18,6 +18,7 @@ class IeLayout extends Model
         'name',
         'lot_id',
         'price',
+        'efficiency_constant',
         'department',
         'total_smv',
         'man_power_sewer',

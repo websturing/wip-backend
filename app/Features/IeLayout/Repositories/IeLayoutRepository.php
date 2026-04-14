@@ -42,6 +42,7 @@ class IeLayoutRepository
 
             if (isset($data['details'])) {
                 foreach ($data['details'] as $detail) {
+                    $detail = $this->calculateMetrics($detail, $ieLayout->efficiency_constant);
                     $detail['ie_layout_id'] = $ieLayout->id;
                     $detail['created_by_id'] = $ieLayout->created_by_id;
                     $detail['updated_by_id'] = $ieLayout->updated_by_id;
@@ -63,6 +64,8 @@ class IeLayoutRepository
             $ieLayoutData = collect($data)->except('details')->toArray();
             $updated = $ieLayout->update($ieLayoutData);
 
+            $efficiency = $ieLayout->efficiency_constant;
+
             if (isset($data['details'])) {
                 $detailIds = collect($data['details'])->pluck('id')->filter()->toArray();
                 
@@ -71,11 +74,12 @@ class IeLayoutRepository
 
                 // Update or create details
                 foreach ($data['details'] as $detail) {
+                    $detail = $this->calculateMetrics($detail, $efficiency);
                     $detail['ie_layout_id'] = $ieLayout->id;
                     $detail['updated_by_id'] = $data['updated_by_id'] ?? null;
                     
                     if (isset($detail['id'])) {
-                        TimeStudy::where('id', $detail['id'])->update($detail);
+                        TimeStudy::where('id', $detail['id'])->update(collect($detail)->except('id')->toArray());
                     } else {
                         $detail['created_by_id'] = $data['updated_by_id'] ?? null;
                         TimeStudy::create($detail);
@@ -88,13 +92,63 @@ class IeLayoutRepository
     }
 
     /**
+     * Calculate engineering metrics based on user formulas.
+     */
+    protected function calculateMetrics(array $detail, $efficiency): array
+    {
+        // 1. Handle Operation (Create if doesn't exist)
+        if (isset($detail['operation_name']) && empty($detail['operation_id'])) {
+            $op = \App\Features\IeLayout\Models\Operation::firstOrCreate(
+                ['name' => $detail['operation_name']],
+                [
+                    'code' => strtoupper(substr($detail['operation_name'], 0, 3)) . rand(100, 999), 
+                    'machine_type' => $detail['machine_type'] ?? 'S',
+                    'sequence' => 0
+                ]
+            );
+            $detail['operation_id'] = $op->id;
+        }
+
+        $machineType = $detail['machine_type'] ?? '';
+        $posHandling = $detail['handling_position_value'] ?? 0;
+        $sewLength = $detail['length'] ?? 0;
+        
+        // rest of calculations...
+
+        // 1. Machine Turn
+        $turn = 0;
+        $mt = strtoupper($machineType);
+        if ($mt === 'O/L') $turn = 0.125;
+        elseif (in_array($mt, ['S', 'C', 'BT', 'BH', 'O'])) $turn = 0.158;
+        elseif ($mt === 'S/M') $turn = 0.369;
+        elseif ($mt === 'IRON') $turn = 0.048;
+        else $turn = $detail['machine_turn'] ?? 0;
+
+        $detail['machine_turn'] = $turn;
+
+        // 2. STD Time: =IF(E8>0;F8*H8+E8;"") -> Round Up to 2 decimal places
+        // F is sew length, H is machine turn, E is handling
+        $stdTime = ($posHandling > 0) ? ($sewLength * $turn) + $posHandling : 0;
+        $stdTime = ceil($stdTime * 100) / 100; // Round up to 2 decimals
+        $detail['std_time'] = $stdTime;
+
+        // 3. Target/Hour: =IF(E8>0;(3600*E$2)/I8;"")
+        $targetHour = ($posHandling > 0 && $stdTime > 0) ? (3600 * $efficiency) / $stdTime : 0;
+        $detail['target_hour'] = $targetHour;
+
+        // 4. Target/Day & SMV
+        $detail['target_day'] = $targetHour * 8;
+        $detail['smv'] = ($targetHour > 0) ? 60 / $targetHour : 0;
+
+        return $detail;
+    }
+
+    /**
      * Delete an IE layout and its cascading details.
      */
     public function delete(int $id): bool
     {
         $ieLayout = IeLayout::findOrFail($id);
-        // Cascading delete should be handled by DB foreign keys, 
-        // but we can also handle it here if needed.
         return $ieLayout->delete();
     }
 }
