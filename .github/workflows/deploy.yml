@@ -44,7 +44,7 @@ jobs:
           php artisan route:cache
           php artisan view:cache
 
-          # 4. Fix Permissions (Penting agar tidak Error 500)
+          # 4. Fix Permissions (Penting agar tidak Error 500) 
           chmod -R 775 storage bootstrap/cache
           
           # 5. Restart PM2
