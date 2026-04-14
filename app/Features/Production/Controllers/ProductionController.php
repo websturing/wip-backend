@@ -170,6 +170,64 @@ class ProductionController extends Controller
         });
     }
 
+    public function show($id)
+    {
+        $production = Production::with(['line', 'items.lot.glGroup', 'items.details'])->findOrFail($id);
+        
+        return response()->json([
+            'status' => 'success',
+            'data' => $production
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $production = Production::findOrFail($id);
+        
+        $validated = $request->validate([
+            'line_id' => 'required|exists:lines,id',
+            'production_date' => 'required|date',
+            'remarks' => 'nullable|string',
+            'items' => 'required|array',
+            'items.*.lot_id' => 'required|exists:lots,id',
+            'items.*.color' => 'required|string',
+            'items.*.sizes' => 'required|array',
+            'items.*.sizes.*.size_name' => 'required|string',
+            'items.*.sizes.*.qty_input' => 'required|integer',
+            'items.*.sizes.*.qty_output' => 'required|integer',
+        ]);
+
+        return DB::transaction(function () use ($validated, $production, $request) {
+            $production->update([
+                'line_id' => $validated['line_id'],
+                'production_date' => $validated['production_date'],
+                'remarks' => $request->get('remarks'),
+            ]);
+
+            // Sync items: Delete existing and recreate (simplest for these nested structures)
+            foreach ($production->items as $item) {
+                $item->details()->delete();
+                $item->delete();
+            }
+
+            foreach ($validated['items'] as $itemData) {
+                $item = $production->items()->create([
+                    'lot_id' => $itemData['lot_id'],
+                    'color' => $itemData['color']
+                ]);
+
+                foreach ($itemData['sizes'] as $sizeData) {
+                    $item->details()->create($sizeData);
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $production->load(['line', 'items.lot', 'items.details'])
+            ]);
+        });
+    }
+
     public function destroy($id)
     {
         Production::findOrFail($id)->delete();
