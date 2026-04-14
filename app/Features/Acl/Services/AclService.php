@@ -54,6 +54,12 @@ class AclService
                 'action' => $p['action']
             ]);
         }
+
+        // Auto-assign all permissions to Administrator role
+        $adminRole = Role::where('name', 'Administrator')->first();
+        if ($adminRole) {
+            $adminRole->permissions()->sync(Permission::pluck('id'));
+        }
     }
 
     public function getRoles()

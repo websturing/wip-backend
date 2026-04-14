@@ -24,8 +24,13 @@ class AppServiceProvider extends ServiceProvider
                 // 2. Auto-load Routes (api.php)
                 $routeFile = $directory . '/routes.php';
                 if (File::exists($routeFile)) {
-                    // Temporarily removed auth:sanctum for testing in Postman
-                    Route::middleware(['api'])
+                    // Feature Auth should be public
+                    $middleware = ['api'];
+                    if (strtolower($featureName) !== 'auth') {
+                        $middleware[] = 'auth:sanctum';
+                    }
+
+                    Route::middleware($middleware)
                         ->prefix('api/' . strtolower($featureName))
                         ->group($routeFile);
                 }
