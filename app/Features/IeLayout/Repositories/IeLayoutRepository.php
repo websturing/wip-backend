@@ -130,19 +130,18 @@ class IeLayoutRepository
 
         $detail['machine_turn'] = $turn;
 
-        // 2. STD Time: =IF(E8>0;F8*H8+E8;"") -> Round Up to 2 decimal places
-        // F is sew length, H is machine turn, E is handling
         $stdTime = ($posHandling > 0) ? ($sewLength * $turn) + $posHandling : 0;
         $stdTime = ceil($stdTime * 100) / 100; // Round up to 2 decimals
         $detail['std_time'] = $stdTime;
 
-        // 3. Target/Hour: =IF(E8>0;(3600*E$2)/I8;"")
-        $targetHour = ($posHandling > 0 && $stdTime > 0) ? (3600 * $efficiency) / $stdTime : 0;
+        // 3. Standard Industry Formulas
+        $mp = $detail['man_power'] ?? 1;
+        $detail['smv'] = ($stdTime > 0) ? $stdTime / 60 : 0;
+        $targetHour = ($stdTime > 0) ? (3600 * $efficiency * $mp) / $stdTime : 0;
         $detail['target_hour'] = $targetHour;
 
-        // 4. Target/Day & SMV
+        // 4. Target/Day
         $detail['target_day'] = $targetHour * 8;
-        $detail['smv'] = ($targetHour > 0) ? 60 / $targetHour : 0;
 
         return $detail;
     }
