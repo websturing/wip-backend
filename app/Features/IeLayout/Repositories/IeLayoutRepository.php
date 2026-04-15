@@ -46,7 +46,10 @@ class IeLayoutRepository
                     $detail['ie_layout_id'] = $ieLayout->id;
                     $detail['created_by_id'] = $ieLayout->created_by_id;
                     $detail['updated_by_id'] = $ieLayout->updated_by_id;
-                    TimeStudy::create($detail);
+                    
+                    // Clean up for DB
+                    $dbData = collect($detail)->only((new TimeStudy())->getFillable())->toArray();
+                    TimeStudy::create($dbData);
                 }
             }
 
@@ -78,11 +81,14 @@ class IeLayoutRepository
                     $detail['ie_layout_id'] = $ieLayout->id;
                     $detail['updated_by_id'] = $data['updated_by_id'] ?? null;
                     
+                    // Clean up for DB
+                    $dbData = collect($detail)->only((new TimeStudy())->getFillable())->toArray();
+
                     if (isset($detail['id'])) {
-                        TimeStudy::where('id', $detail['id'])->update(collect($detail)->except('id')->toArray());
+                        TimeStudy::where('id', $detail['id'])->update($dbData);
                     } else {
-                        $detail['created_by_id'] = $data['updated_by_id'] ?? null;
-                        TimeStudy::create($detail);
+                        $dbData['created_by_id'] = $data['updated_by_id'] ?? null;
+                        TimeStudy::create($dbData);
                     }
                 }
             }
@@ -112,8 +118,6 @@ class IeLayoutRepository
         $machineType = $detail['machine_type'] ?? '';
         $posHandling = $detail['handling_position_value'] ?? 0;
         $sewLength = $detail['length'] ?? 0;
-        
-        // rest of calculations...
 
         // 1. Machine Turn
         $turn = 0;
@@ -142,6 +146,7 @@ class IeLayoutRepository
 
         return $detail;
     }
+
 
     /**
      * Delete an IE layout and its cascading details.

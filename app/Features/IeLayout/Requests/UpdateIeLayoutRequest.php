@@ -29,6 +29,7 @@ class UpdateIeLayoutRequest extends FormRequest
             'man_power_matching' => ['sometimes', 'numeric'],
             'man_power_qc' => ['sometimes', 'numeric'],
             'man_power_others' => ['sometimes', 'numeric'],
+            'efficiency_constant' => ['sometimes', 'numeric'],
             'details' => ['nullable', 'array'],
             'details.*.id' => ['nullable', 'exists:time_studies,id'],
             'details.*.operation_id' => ['nullable', 'required_without:details.*.operation_name'],
