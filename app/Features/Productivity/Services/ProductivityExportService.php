@@ -21,11 +21,16 @@ class ProductivityExportService
         return $this->generateFile([$productivity], 'Productivity_' . $productivity->line->name . '_' . $productivity->date);
     }
 
-    public function exportByDate($date)
+    public function exportByDate($date, $lineIds = null)
     {
-        $productivities = Productivity::with(['line', 'lots.glGroup.customer'])
-            ->whereDate('date', $date)
-            ->get();
+        $query = Productivity::with(['line', 'lots.glGroup.customer'])
+            ->whereDate('date', $date);
+
+        if (!empty($lineIds)) {
+            $query->whereIn('line_id', $lineIds);
+        }
+
+        $productivities = $query->get();
         
         return $this->generateFile($productivities, 'Daily_Productivity_' . $date);
     }
@@ -33,7 +38,6 @@ class ProductivityExportService
     private function generateFile($productivities, $fileName)
     {
         // 1. Pre-fetch all necessary data to avoid N+1 in export
-        $allLotIds = $productivities->flatMap->lots->pluck('id')->unique();
         $allLineIds = $productivities->pluck('line_id')->unique();
         $dates = $productivities->pluck('date')->unique();
 
@@ -42,7 +46,7 @@ class ProductivityExportService
             ->with(['items.details'])
             ->get();
 
-        // 2. Fetch Cutting Data from external API (Bulk if possible, but the API seems GL-specific)
+        // 2. Fetch Cutting Data from external API
         $uniqueLotCodes = $productivities->flatMap->lots->pluck('lot_code')->unique();
         $cuttingCache = [];
         if ($uniqueLotCodes->isNotEmpty()) {
@@ -79,12 +83,9 @@ class ProductivityExportService
             // Re-load pivot media for each
             $productivity->lots->each(function($l) { $l->pivot->load('media'); });
 
-            $col = 'A';
             foreach ($productivity->lots as $index => $lot) {
-                // If it's the 3rd lot in a row, maybe move to next row?
-                // For "Export All", let's just stack them down for simplicity and best printing
                 $this->drawStyleBlock($sheet, 'B', $row, $lot, $productivity, $productionData, $cuttingCache);
-                $row += 7; // Gap between blocks
+                $row += 8; // Increased gap slightly
             }
         }
 
@@ -126,7 +127,7 @@ class ProductivityExportService
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ];
 
-        // --- ROW 1 (Header: Line & Buyer) ---
+        // --- ROW 1 (Header: Line & Target Output) ---
         $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); // Line Name Vertical
         $sheet->setCellValue("{$c1}{$row}", $productivity->line->name);
         $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
@@ -136,9 +137,12 @@ class ProductivityExportService
         $sheet->setCellValue("{$c2}{$row}", "Sewer/Helper | 车工/外勤工");
         $sheet->getStyle("{$c2}{$row}")->applyFromArray($labelStyle);
 
+        // CHANGE: "Buyer" replaced with "Target Output" value from pivot
         $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
-        $sheet->setCellValue("{$c3}{$row}", $lot->glGroup->customer->name ?? 'UNKNOWN');
+        $targetPlan = number_format($lot->pivot->target_plan ?? 0, 0, ',', '.');
+        $sheet->setCellValue("{$c3}{$row}", "TARGET OUTPUT: " . $targetPlan);
         $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle);
+        $sheet->getStyle("{$c3}{$row}")->getFill()->getStartColor()->setRGB('FFEB9C'); // Light yellow background
         
         // --- ROW 2 (MP & MG) ---
         $mp = (int)($lot->pivot->manpower ?? $productivity->manpower);
@@ -259,8 +263,8 @@ class ProductivityExportService
         // Set Column widths
         $sheet->getColumnDimension($c1)->setWidth(5);
         $sheet->getColumnDimension($c2)->setWidth(25);
-        $sheet->getColumnDimension($c3)->setWidth(10);
-        $sheet->getColumnDimension($c4)->setWidth(10);
+        $sheet->getColumnDimension($c3)->setWidth(15);
+        $sheet->getColumnDimension($c4)->setWidth(15);
         $sheet->getColumnDimension($c5)->setWidth(25);
         $sheet->getColumnDimension($c6)->setWidth(15);
         $sheet->getColumnDimension($c7)->setWidth(15);

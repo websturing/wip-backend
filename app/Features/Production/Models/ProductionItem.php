@@ -9,7 +9,7 @@ use App\Features\Reference\Models\Lot;
 class ProductionItem extends Model
 {
     use HasUuids;
-    protected $fillable = ['production_id', 'lot_id', 'color'];
+    protected $fillable = ['production_id', 'lot_id', 'color', 'section'];
 
     public function lot()
     {

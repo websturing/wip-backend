@@ -56,6 +56,7 @@ class ProductivityController extends Controller
             'lot_data.*.plan_sewer' => 'sometimes|numeric',
             'lot_data.*.working_hour' => 'sometimes|numeric',
             'lot_data.*.media_id' => 'nullable|string',
+            'lot_data.*.section' => 'nullable|string',
         ]);
 
         // Primary lot_id for legacy/summary (compatibility)
@@ -78,6 +79,7 @@ class ProductivityController extends Controller
                 'plan_sewer' => $ld['plan_sewer'] ?? 0,
                 'working_hour' => $ld['working_hour'] ?? 8,
                 'media_id' => $ld['media_id'] ?? null,
+                'section' => $ld['section'] ?? 'all',
             ];
         }
         $productivity->lots()->sync($syncData);
@@ -105,6 +107,7 @@ class ProductivityController extends Controller
             'lot_data.*.last_step' => 'required|numeric',
             'lot_data.*.target_plan' => 'required|numeric',
             'lot_data.*.media_id' => 'nullable|string',
+            'lot_data.*.section' => 'nullable|string',
         ]);
 
         $productivity = $this->repository->update($id, $request->except('lot_data'));
@@ -122,6 +125,7 @@ class ProductivityController extends Controller
                     'plan_sewer' => $ld['plan_sewer'] ?? 0,
                     'working_hour' => $ld['working_hour'] ?? 8,
                     'media_id' => $ld['media_id'] ?? null,
+                    'section' => $ld['section'] ?? 'all',
                 ];
             }
             $productivity->lots()->sync($syncData);
@@ -190,7 +194,8 @@ class ProductivityController extends Controller
     public function exportByDate(Request $request, \App\Features\Productivity\Services\ProductivityExportService $service)
     {
         $date = $request->get('date', now()->toDateString());
-        $filePath = $service->exportByDate($date);
+        $lineIds = $request->get('line_ids'); // Expecting array
+        $filePath = $service->exportByDate($date, $lineIds);
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
 }
