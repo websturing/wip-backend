@@ -186,4 +186,11 @@ class ProductivityController extends Controller
         $filePath = $service->export($id);
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
+
+    public function exportByDate(Request $request, \App\Features\Productivity\Services\ProductivityExportService $service)
+    {
+        $date = $request->get('date', now()->toDateString());
+        $filePath = $service->exportByDate($date);
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
 }
