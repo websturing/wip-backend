@@ -180,4 +180,10 @@ class ProductivityController extends Controller
             ]
         ]);
     }
+
+    public function export($id, \App\Features\Productivity\Services\ProductivityExportService $service)
+    {
+        $filePath = $service->export($id);
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
 }
