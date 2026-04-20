@@ -14,12 +14,32 @@ class ProductivityRepository
             $query->whereDate('date', $date);
         }
 
-        return $query->latest()->get();
+        $data = $query->latest()->get();
+
+        // Load pivot media for each lot
+        $data->each(function($p) {
+            $p->lots->each(function($l) {
+                if ($l->pivot) {
+                    $l->pivot->load('media');
+                }
+            });
+        });
+
+        return $data;
     }
 
     public function findById($id)
     {
-        return Productivity::with(['line', 'lot.glGroup.customer', 'lots.glGroup.customer'])->findOrFail($id);
+        $item = Productivity::with(['line', 'lot.glGroup.customer', 'lots.glGroup.customer'])->findOrFail($id);
+        
+        // Eager load pivot media
+        $item->lots->each(function($l) {
+            if ($l->pivot) {
+                $l->pivot->load('media');
+            }
+        });
+
+        return $item;
     }
 
     public function create(array $data)
