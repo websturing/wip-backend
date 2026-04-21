@@ -8,7 +8,7 @@ class ProductivityRepository
 {
     public function getAll($date = null)
     {
-        $query = Productivity::with(['line', 'lot.glGroup.customer', 'lots.glGroup.customer']);
+        $query = Productivity::with(['line', 'lots.glGroup.customer']);
         
         if ($date) {
             $query->whereDate('date', $date);
@@ -16,11 +16,10 @@ class ProductivityRepository
 
         $data = $query->latest()->get();
 
-        // Load pivot media for each lot
         $data->each(function($p) {
             $p->lots->each(function($l) {
-                if ($l->pivot) {
-                    $l->pivot->load('media');
+                if ($l->pivot && $l->pivot->media) {
+                    $l->pivot->media_url = $l->pivot->media->url;
                 }
             });
         });
@@ -30,15 +29,12 @@ class ProductivityRepository
 
     public function findById($id)
     {
-        $item = Productivity::with(['line', 'lot.glGroup.customer', 'lots.glGroup.customer'])->findOrFail($id);
-        
-        // Eager load pivot media
+        $item = Productivity::with(['line', 'lots.glGroup.customer'])->findOrFail($id);
         $item->lots->each(function($l) {
-            if ($l->pivot) {
-                $l->pivot->load('media');
+            if ($l->pivot && $l->pivot->media) {
+                $l->pivot->media_url = $l->pivot->media->url;
             }
         });
-
         return $item;
     }
 

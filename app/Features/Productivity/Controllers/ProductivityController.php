@@ -78,14 +78,18 @@ class ProductivityController extends Controller
                 'sewer' => $ld['sewer'] ?? 0,
                 'plan_sewer' => $ld['plan_sewer'] ?? 0,
                 'working_hour' => $ld['working_hour'] ?? 8,
-                'media_id' => $ld['media_id'] ?? null,
+                'media_id' => !empty($ld['media_id']) ? $ld['media_id'] : null,
                 'section' => $ld['section'] ?? 'all',
             ];
         }
         $productivity->lots()->sync($syncData);
 
         $productivity->load(['lots.glGroup.customer']);
-        $productivity->lots->each(function($l) { $l->pivot->load('media'); });
+        $productivity->lots->each(function($l) {
+            if ($l->pivot && $l->pivot->media) {
+                $l->pivot->media_url = $l->pivot->media->url;
+            }
+        });
 
         return response()->json([
             'status' => 'success',
@@ -124,7 +128,7 @@ class ProductivityController extends Controller
                     'sewer' => $ld['sewer'] ?? 0,
                     'plan_sewer' => $ld['plan_sewer'] ?? 0,
                     'working_hour' => $ld['working_hour'] ?? 8,
-                    'media_id' => $ld['media_id'] ?? null,
+                    'media_id' => !empty($ld['media_id']) ? $ld['media_id'] : null,
                     'section' => $ld['section'] ?? 'all',
                 ];
             }
@@ -132,7 +136,11 @@ class ProductivityController extends Controller
         }
 
         $productivity->load(['lots.glGroup.customer']);
-        $productivity->lots->each(function($l) { $l->pivot->load('media'); });
+        $productivity->lots->each(function($l) {
+            if ($l->pivot && $l->pivot->media) {
+                $l->pivot->media_url = $l->pivot->media->url;
+            }
+        });
 
         return response()->json([
             'status' => 'success',
