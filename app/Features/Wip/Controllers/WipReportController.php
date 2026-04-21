@@ -152,6 +152,141 @@ class WipReportController extends Controller
         ]);
     }
 
+    public function balanceSummary(Request $request)
+    {
+        $validated = $request->validate([
+            'lot_id' => 'required',
+            'colors' => 'required|array',
+        ]);
+
+        $lot = Lot::with(['glGroup.customer'])->where('id', $validated['lot_id'])->orWhere('lot_code', $validated['lot_id'])->firstOrFail();
+        $colors = $validated['colors'];
+
+        // 1. Fetch ALL Raw Production Data for all colors
+        // Note: Production table has BOTH qty_input and qty_output in the details
+        $allData = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+            ->join('productions', 'production_items.production_id', '=', 'productions.id')
+            ->join('lines', 'productions.line_id', '=', 'lines.id')
+            ->where('production_items.lot_id', $lot->id)
+            ->whereIn('production_items.color', $colors)
+            ->select(
+                'production_items.color',
+                'productions.production_date',
+                'lines.name as line_name',
+                'size_name',
+                'qty_input',
+                'qty_output'
+            )
+            ->get();
+
+        // Check if I joined correctly. ProductionItemDetail has production_item_id.
+        // Wait, ProductionItem has production_id.
+        // My previous join in step 212 was:
+        /*
+        $allInputData = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+            ->join('productions', 'production_items.production_id', '=', 'productions.id')
+            ->join('lines', 'productions.line_id', '=', 'lines.id')
+        */
+        // That seems correct. Let me re-verify ProductionItem relationship.
+
+        $sizes = $allData->pluck('size_name')->unique()->values()->toArray();
+        $sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL'];
+        usort($sizes, function($a, $b) use ($sizeOrder) {
+            $posA = array_search(strtoupper($a), $sizeOrder);
+            $posB = array_search(strtoupper($b), $sizeOrder);
+            if ($posA === false && $posB === false) return strcmp($a, $b);
+            if ($posA === false) return 1;
+            if ($posB === false) return -1;
+            return $posA - $posB;
+        });
+
+        // Construct Separate Reports per Color
+        $reports = [];
+        foreach ($colors as $color) {
+            $colorData = $allData->where('color', $color);
+
+            // Group Input per color (qty_input > 0)
+            $groupedInput = $colorData->where('qty_input', '>', 0)
+                ->groupBy(function($item) {
+                    return $item->production_date . '|' . $item->line_name;
+                })->map(function($items, $key) use ($sizes) {
+                    [$date, $line] = explode('|', $key);
+                    $sizeMap = $items->groupBy('size_name')->map->sum('qty_input');
+                    $row = [
+                        'date' => date('d-M', strtotime($date)),
+                        'line' => $line,
+                        'sizes' => []
+                    ];
+                    $total = 0;
+                    foreach ($sizes as $s) {
+                        $val = (int) $sizeMap->get($s, 0);
+                        $row['sizes'][$s] = $val;
+                        $total += $val;
+                    }
+                    $row['total'] = $total;
+                    return $row;
+                })->values();
+
+            // Group Output per color (qty_output > 0)
+            $groupedOutput = $colorData->where('qty_output', '>', 0)
+                ->groupBy(function($item) {
+                    return $item->production_date . '|' . $item->line_name;
+                })->map(function($items, $key) use ($sizes) {
+                    [$date, $line] = explode('|', $key);
+                    $sizeMap = $items->groupBy('size_name')->map->sum('qty_output');
+                    $row = [
+                        'date' => date('d-M', strtotime($date)),
+                        'line' => $line,
+                        'do_number' => '-', 
+                        'sizes' => []
+                    ];
+                    $total = 0;
+                    foreach ($sizes as $s) {
+                        $val = (int) $sizeMap->get($s, 0);
+                        $row['sizes'][$s] = $val;
+                        $total += $val;
+                    }
+                    $row['total'] = $total;
+                    return $row;
+                })->values();
+
+            $reports[] = [
+                'color' => $color,
+                'input' => $groupedInput,
+                'output' => $groupedOutput
+            ];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'header' => [
+                    'gl' => $lot->lot_code,
+                    'style' => $lot->style_no,
+                    'order_qty' => (int) $lot->gmt_qty,
+                    'buyer' => $lot->glGroup->customer->name ?? '-',
+                ],
+                'sizes' => $sizes,
+                'reports' => $reports
+            ]
+        ]);
+    }
+
+    public function getLotColors(Request $request)
+    {
+        $lotId = $request->get('lot_id');
+        if (!$lotId) return response()->json(['status' => 'error', 'message' => 'lot_id required'], 400);
+
+        $lot = Lot::where('id', $lotId)->orWhere('lot_code', $lotId)->firstOrFail();
+        
+        $productionColors = DB::table('production_items')->where('lot_id', $lot->id)->pluck('color');
+        $packingColors = DB::table('packing_items')->where('lot_id', $lot->id)->pluck('color');
+        
+        $colors = $productionColors->merge($packingColors)->unique()->values();
+        
+        return response()->json(['status' => 'success', 'data' => $colors]);
+    }
+
     public function storeExport(Request $request)
     {
         $request->validate([
