@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}   LARAVEL 13 FEATURE GENERATOR V4      ${NC}"
+echo -e "${BLUE}   LARAVEL 13 FEATURE GENERATOR V5      ${NC}"
 echo -e "${BLUE}========================================${NC}"
 
 read -p "Nama Folder Fitur (ex: Auth): " FEATURE_NAME
@@ -37,6 +37,58 @@ echo "2) Model, Migration & Seeder"
 echo "3) Controller, Service, Repos, Request"
 echo "4) Migration Saja"
 read -p "Pilihan [1-4]: " CHOICE
+
+# --- PERMISSION HANDLING ---
+if [[ "$CHOICE" == "1" || "$CHOICE" == "3" ]]; then
+    echo -e "\n${YELLOW}Konfigurasi Access Control (ACL):${NC}"
+    echo "Pilih Group Permission:"
+    
+    # Ambil list group yang sudah ada dari AclService secara dinamis
+    EXISTING_GROUPS=$(php artisan tinker --execute="print_r(array_keys((new App\Features\Acl\Services\AclService)->getDefinitions()))" | grep '\[.*\]' | sed 's/.*\[//;s/\].*//')
+    
+    i=1
+    declare -a groups_array
+    for g in $EXISTING_GROUPS; do
+        echo "$i) $g"
+        groups_array[$i]=$g
+        ((i++))
+    done
+    echo "$i) [ Buat Group Baru ]"
+    
+    read -p "Pilihan Group [1-$i]: " PERM_CHOICE
+    
+    if [ "$PERM_CHOICE" -eq "$i" ]; then
+        read -p "ID Group Baru (snake_case, ex: quality_control): " PERM_ID
+        read -p "Label Group (ex: Quality Control): " PERM_LABEL
+        read -p "Label untuk 'Read' (ex: View Quality Logs): " LABEL_READ
+        read -p "Label untuk 'Create' (ex: Input New Check): " LABEL_CREATE
+        
+        # Inject ke AclService.php menggunakan PHP
+        php -r "
+        \$path = 'app/Features/Acl/Services/AclService.php';
+        \$content = file_get_contents(\$path);
+        \$newEntry = \"            '$PERM_ID' => [\\n\" .
+                     \"                '$PERM_ID.read' => '$LABEL_READ',\\n\" .
+                     \"                '$PERM_ID.create' => '$LABEL_CREATE',\\n\" .
+                     \"                '$PERM_ID.update' => 'Modify $PERM_LABEL Entries',\\n\" .
+                     \"                '$PERM_ID.delete' => 'Remove $PERM_LABEL Records',\\n\" .
+                     \"            ],\\n\";
+        \$updated = str_replace('// [AUTO_GEN_MARKER]', \$newEntry . '            // [AUTO_GEN_MARKER]', \$content);
+        file_put_contents(\$path, \$updated);
+        "
+        echo -e "${GREEN}✅ Group permission '$PERM_LABEL' didaftarkan ke AclService.${NC}"
+    else
+        SELECTED_GROUP=${groups_array[$PERM_CHOICE]}
+        # Kita perlu mencari ID teknis (key) dari group tersebut
+        PERM_ID=$(php artisan tinker --execute="\$defs = (new App\Features\Acl\Services\AclService)->getDefinitions(); foreach(\$defs as \$k => \$v) { if(\$v['label'] == '$SELECTED_GROUP') { echo \$k; break; } }" | tail -n 1 | tr -d '"')
+        
+        # Fallback jika tidak ketemu lewat label, gunakan bash string manipulation
+        if [ -z "$PERM_ID" ]; then
+            PERM_ID=$(echo "$SELECTED_GROUP" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')
+        fi
+        echo -e "${GREEN}✅ Menggunakan Group permission existing: $PERM_ID${NC}"
+    fi
+fi
 
 # --- FUNCTIONS ---
 
@@ -130,14 +182,11 @@ class $SERVICE_NAME
 
     public function create(array \$data)
     {
-        \$data['created_by_id'] = Auth::id();
-        \$data['updated_by_id'] = Auth::id();
         return \$this->repository->create(\$data);
     }
 
     public function update(int \$id, array \$data)
     {
-        \$data['updated_by_id'] = Auth::id();
         return \$this->repository->update(\$id, \$data);
     }
 
@@ -306,20 +355,33 @@ esac
 # Route handling (Option 1 & 3)
 if [[ "$CHOICE" == "1" || "$CHOICE" == "3" ]]; then
     if [ ! -f "$FEATURE_PATH/routes.php" ]; then
+        PID=$PERM_ID
         cat <<EOF > "$FEATURE_PATH/routes.php"
 <?php
 
 use Illuminate\Support\Facades\Route;
 use App\Features\\$FEATURE_NAME\Controllers\\$CONTROLLER_NAME;
 
-Route::get('/', [$CONTROLLER_NAME::class, 'index']);
-Route::post('/', [$CONTROLLER_NAME::class, 'store']);
-Route::get('/{id}', [$CONTROLLER_NAME::class, 'show']);
-Route::put('/{id}', [$CONTROLLER_NAME::class, 'update']);
-Route::delete('/{id}', [$CONTROLLER_NAME::class, 'destroy']);
+Route::middleware('permission:$PID.read')->group(function() {
+    Route::get('/', [$CONTROLLER_NAME::class, 'index']);
+    Route::get('/{id}', [$CONTROLLER_NAME::class, 'show']);
+});
+
+Route::middleware('permission:$PID.create')->group(function() {
+    Route::post('/', [$CONTROLLER_NAME::class, 'store']);
+});
+
+Route::middleware('permission:$PID.update')->group(function() {
+    Route::put('/{id}', [$CONTROLLER_NAME::class, 'update']);
+});
+
+Route::middleware('permission:$PID.delete')->group(function() {
+    Route::delete('/{id}', [$CONTROLLER_NAME::class, 'destroy']);
+});
 EOF
-        echo -e "${GREEN}✅ Full CRUD routes.php dibuat.${NC}"
+        echo -e "${GREEN}✅ routes.php dibuat dan diamankan dengan permission '$PID'.${NC}"
     fi
 fi
 
 echo -e "\n${BLUE}Selesai! Struktur $FEATURE_NAME sudah lengkap.${NC}"
+echo -e "${YELLOW}Jangan lupa jalankan 'php artisan migrate' dan klik 'Sync' di Access Control UI.${NC}"

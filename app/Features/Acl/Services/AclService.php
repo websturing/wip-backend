@@ -43,6 +43,7 @@ class AclService
                 'wip.update' => 'Modify WIP Adjustments',
                 'wip.delete' => 'Clear WIP Records',
             ],
+            // [AUTO_GEN_MARKER]
         ];
     }
 
