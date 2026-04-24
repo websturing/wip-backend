@@ -24,6 +24,17 @@ class ProductivityLot extends Pivot
         'section'
     ];
 
+    protected $casts = [
+        'smv' => 'float',
+        'last_step' => 'float',
+        'target_plan' => 'float',
+        'manpower' => 'float',
+        'plan_manpower' => 'float',
+        'sewer' => 'float',
+        'plan_sewer' => 'float',
+        'working_hour' => 'float',
+    ];
+
     protected $with = ['media'];
 
     public function media()

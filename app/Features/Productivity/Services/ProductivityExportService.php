@@ -95,11 +95,11 @@ class ProductivityExportService
             foreach ($groupedLots as $lotGroup) {
                 // Calculate metrics for this block to add to total
                 $firstLot = $lotGroup[0];
-                $smv = (float)($firstLot->pivot->smv ?? 0);
-                $mp = (int)($firstLot->pivot->manpower ?? 0);
-                $mg = (int)($firstLot->pivot->sewer ?? 0);
-                $wh = (float)($firstLot->pivot->working_hour ?? 8);
-                $target = $smv > 0 ? floor(($mp + $mg) * 8 * 60 / $smv) : 0;
+                $smv = (float)($firstLot->pivot->smv ?? $productivity->smv ?? 0);
+                $mp = (float)($productivity->manpower ?? $firstLot->pivot->manpower ?? 0);
+                $mg = (float)($productivity->sewer ?? $firstLot->pivot->sewer ?? 0);
+                $wh = (float)($firstLot->pivot->working_hour ?? $productivity->working_hour ?? 8);
+                $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
                 
                 $lotIds = collect($lotGroup)->pluck('id')->toArray();
                 $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
@@ -108,9 +108,12 @@ class ProductivityExportService
                     return in_array($i->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
                 })->flatMap->details->sum('qty_output');
 
-                $allTotals['sewers'] += $mg;
-                $allTotals['manpower'] += $mp;
-                // Total hours is usually line hours sum in these reports
+                // Only add MP/MG to grand totals once per line record
+                if ($lotGroup === $groupedLots[0]) {
+                    $allTotals['sewers'] += $mg;
+                    $allTotals['manpower'] += $mp;
+                }
+                
                 $allTotals['hours'] += (($mg + $mp) * $wh);
                 $allTotals['target'] += $target;
                 $allTotals['output'] += $output;
@@ -148,10 +151,10 @@ class ProductivityExportService
         $combinedLots = collect($lotGroup)->map(fn($l) => ltrim($l->lot_code, '0'))->join(' + ');
         $combinedGLs = collect($lotGroup)->map(fn($l) => $l->glGroup->gl_number)->unique()->join(' / ');
         $lotIds = collect($lotGroup)->pluck('id')->toArray();
-        $smv = (float)($firstLot->pivot->smv ?? 0);
-        $mp = (int)($firstLot->pivot->manpower ?? 0);
-        $mg = (int)($firstLot->pivot->sewer ?? 0);
-        $wh = (float)($firstLot->pivot->working_hour ?? 8);
+        $smv = (float)($firstLot->pivot->smv ?? $productivity->smv ?? 0);
+        $mp = (float)($productivity->manpower ?? $firstLot->pivot->manpower ?? 0);
+        $mg = (float)($productivity->sewer ?? $firstLot->pivot->sewer ?? 0);
+        $wh = (float)($firstLot->pivot->working_hour ?? $productivity->working_hour ?? 8);
         $targetPlanTotal = collect($lotGroup)->sum(fn($l) => $l->pivot->target_plan ?? 0);
 
         // Styling Defaults
@@ -258,7 +261,7 @@ class ProductivityExportService
         $sheet->getStyle("{$c6}" . ($row + 1))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
-        $target = $smv > 0 ? floor(($mp + $mg) * 8 * 60 / $smv) : 0;
+        $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
         $sheet->setCellValue("{$c7}" . ($row + 1), number_format($target, 0, ',', '.'));
         $sheet->getStyle("{$c7}" . ($row + 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
@@ -397,11 +400,11 @@ class ProductivityExportService
                     
                     $combinedLots = collect($lotGroup)->map(fn($l) => ltrim($l->lot_code, '0'))->join(' + ');
                     $lotIds = collect($lotGroup)->pluck('id')->toArray();
-                    $smv = (float)($firstLot->pivot->smv ?? 0);
-                    $mpAct = ($firstLot->pivot->manpower ?? 0) + ($firstLot->pivot->sewer ?? 0);
-                    $mpPln = $firstLot->pivot->plan_manpower ?? 0;
+                    $smv = (float)($firstLot->pivot->smv ?? $p->smv ?? 0);
+                    $mpAct = (float)($p->manpower ?? $firstLot->pivot->manpower ?? 0) + (float)($p->sewer ?? $firstLot->pivot->sewer ?? 0);
+                    $mpPln = (float)($p->plan_manpower ?? $firstLot->pivot->plan_manpower ?? 0);
                     $tgtPln = collect($lotGroup)->sum(fn($l) => $l->pivot->target_plan ?? 0);
-                    $wh = $firstLot->pivot->working_hour ?? 8;
+                    $wh = (float)($firstLot->pivot->working_hour ?? $p->working_hour ?? 8);
                     $tgtAct = $smv > 0 ? floor(($mpAct * $wh * 60) / $smv) : 0;
 
                     $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
