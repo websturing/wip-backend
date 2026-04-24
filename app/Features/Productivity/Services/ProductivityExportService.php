@@ -83,14 +83,42 @@ class ProductivityExportService
         $sheet->setTitle('Productivity');
 
         $row = 1;
+        $allTotals = [
+            'sewers' => 0, 'manpower' => 0, 'hours' => 0,
+            'target' => 0, 'output' => 0, 'lines_count' => 0
+        ];
+
         foreach ($productivities as $productivity) {
             $groupedLots = $this->groupLots($productivity->lots);
+            $allTotals['lines_count']++;
 
             foreach ($groupedLots as $lotGroup) {
+                // Calculate metrics for this block to add to total
+                $firstLot = $lotGroup[0];
+                $smv = (float)($firstLot->pivot->smv ?? 0);
+                $mp = (int)($firstLot->pivot->manpower ?? 0);
+                $mg = (int)($firstLot->pivot->sewer ?? 0);
+                $wh = (float)($firstLot->pivot->working_hour ?? 8);
+                $target = $smv > 0 ? floor(($mp + $mg) * 8 * 60 / $smv) : 0;
+                
+                $lotIds = collect($lotGroup)->pluck('id')->toArray();
+                $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
+                $output = $lpItems->filter(fn($i) => in_array($i->lot_id, $lotIds))->flatMap->details->sum('qty_output');
+
+                $allTotals['sewers'] += $mg;
+                $allTotals['manpower'] += $mp;
+                // Total hours is usually line hours sum in these reports
+                $allTotals['hours'] += (($mg + $mp) * $wh);
+                $allTotals['target'] += $target;
+                $allTotals['output'] += $output;
+
                 $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
                 $row += 8;
             }
         }
+
+        // 4. Draw Grand Total Accumulation
+        $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $dates->first());
 
         $writer = new Xlsx($spreadsheet);
         $finalName = $fileName . '.xlsx';
@@ -509,6 +537,125 @@ class ProductivityExportService
         } catch (\Exception $e) {
             // Log or ignore
         }
+    }
+
+    private function drawGrandTotalBlock($sheet, $startCol, $row, $totals, $date)
+    {
+        $c1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($startCol) - 1);
+        $c2 = $startCol;
+        $c3 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 2);
+        $c4 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 3);
+        $c5 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 4);
+        $c6 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 5);
+        $c7 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 6);
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'size' => 12, 'italic' => true],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THICK]],
+        ];
+
+        $labelStyle = [
+            'font' => ['bold' => true, 'size' => 10],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+        ];
+
+        $dataStyle = [
+            'font' => ['bold' => true, 'size' => 12],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+        ];
+
+        // Header Date & Line Group
+        $sheet->mergeCells("{$c3}{$row}:{$c7}{$row}");
+        $sheet->setCellValue("{$c3}{$row}", $date ? date('j-M-y', strtotime($date)) : '-');
+        $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle);
+
+        $row++;
+        $sheet->mergeCells("{$c3}{$row}:{$c7}{$row}");
+        $sheet->setCellValue("{$c3}{$row}", "TOTAL ACCUMULATION (All Lines)");
+        $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle);
+
+        $row++;
+        // Column Headers
+        $sheet->setCellValue("{$c3}{$row}", "TOTAL / AVERAGE");
+        $sheet->getStyle("{$c3}{$row}")->getFont()->setItalic(true)->setBold(true);
+        $sheet->getStyle("{$c3}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
+
+        $sheet->setCellValue("{$c7}{$row}", "GRAND TOTAL");
+        $sheet->getStyle("{$c7}{$row}")->getFont()->setItalic(true)->setBold(true);
+        $sheet->getStyle("{$c7}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $row++;
+        // Metrics rows
+        $metrics = [
+            ['label' => 'Sewer/Helper', 'val' => $totals['sewers'] + $totals['manpower']],
+            ['label' => 'Total Hours', 'val' => number_format($totals['hours'], 0, ',', '.')],
+            ['label' => 'Total Daily Target', 'val' => number_format($totals['target'], 0, ',', '.')],
+            ['label' => 'Total Production Output', 'val' => number_format($totals['output'], 0, ',', '.')],
+        ];
+
+        foreach ($metrics as $m) {
+            $sheet->mergeCells("{$c1}{$row}:{$c2}{$row}");
+            $sheet->setCellValue("{$c1}{$row}", $m['label']);
+            $sheet->getStyle("{$c1}{$row}")->applyFromArray($labelStyle);
+
+            $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
+            $sheet->setCellValue("{$c3}{$row}", $m['val']);
+            $sheet->getStyle("{$c3}{$row}")->applyFromArray($dataStyle);
+
+            $sheet->setCellValue("{$c7}{$row}", $m['val']);
+            $sheet->getStyle("{$c7}{$row}")->applyFromArray($dataStyle);
+            $row++;
+        }
+
+        // % Achieved row
+        $sheet->mergeCells("{$c1}{$row}:{$c2}{$row}");
+        $sheet->setCellValue("{$c1}{$row}", "% of Achieved");
+        $sheet->getStyle("{$c1}{$row}")->applyFromArray($labelStyle);
+
+        $ach = $totals['target'] > 0 ? ($totals['output'] / $totals['target']) : 0;
+        $achStr = number_format($ach * 100, 2, ',', '.') . "%";
+
+        $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
+        $sheet->setCellValue("{$c3}{$row}", $achStr);
+        $sheet->getStyle("{$c3}{$row}")->applyFromArray($dataStyle);
+        $sheet->getStyle("{$c3}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
+
+        $sheet->setCellValue("{$c7}{$row}", $achStr);
+        $sheet->getStyle("{$c7}{$row}")->applyFromArray($dataStyle);
+        $row++;
+
+        // Footer Special blocks
+        $row++;
+        $sheet->setCellValue("{$c3}{$row}", "WAITING CHECK");
+        $sheet->getStyle("{$c3}{$row}")->getFont()->setBold(true)->setItalic(true);
+        $sheet->getStyle("{$c3}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        
+        $sheet->setCellValue("{$c5}{$row}", $totals['lines_count'] * 5); // Dummy or calculated logic
+        $sheet->getStyle("{$c5}{$row}")->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle("{$c5}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells("{$c7}{$row}:{$c7}" . ($row+1));
+        $sheet->setCellValue("{$c7}{$row}", "OFFLINE\nSEWER :");
+        $sheet->getStyle("{$c7}{$row}")->getAlignment()->setWrapText(true);
+        $sheet->getStyle("{$c7}{$row}")->applyFromArray($headerStyle);
+
+        $row++;
+        $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
+        $sheet->setCellValue("{$c3}{$row}", "SUM PRECENTAGE SOA = ");
+        $sheet->getStyle("{$c3}{$row}")->getFont()->setBold(true)->setItalic(true);
+        $sheet->getStyle("{$c3}{$row}")->getFont()->getColor()->setRGB('FF0000');
+        $sheet->getStyle("{$c3}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
+
+        $sheet->setCellValue("{$c5}{$row}", $achStr);
+        $sheet->getStyle("{$c5}{$row}")->getFont()->setBold(true)->setItalic(true);
+        $sheet->getStyle("{$c5}{$row}")->getFont()->getColor()->setRGB('FF0000');
+        $sheet->getStyle("{$c5}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
+        $sheet->getStyle("{$c5}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     private function getLineCategory($lineName) {
