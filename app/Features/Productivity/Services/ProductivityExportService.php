@@ -203,8 +203,9 @@ class ProductivityExportService
         $sheet->getStyle("{$c5}{$row}")->applyFromArray($headerStyle);
         $sheet->getStyle("{$c5}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFFF');
 
+        $section = strtoupper($firstLot->pivot->section ?? 'ALL');
         $sheet->mergeCells("{$c5}" . ($row + 2) . ":{$c5}" . ($row + 2));
-        $sheet->setCellValue("{$c5}" . ($row + 2), $combinedLots);
+        $sheet->setCellValue("{$c5}" . ($row + 2), "{$combinedLots} - ({$section})");
         $sheet->getStyle("{$c5}" . ($row + 2))->applyFromArray($labelStyle);
 
         // Image Placeholder
@@ -292,7 +293,7 @@ class ProductivityExportService
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $headers = [
-            'Line', 'LOT', 'Sect', 
+            'Line', 'LOT', 
             'MP Plan', 'Target Plan', 'MP Actual', 'Target Act', 
             'Output Daily', 'Last Step', 
             'DIFF Do Vs Targ', '% T.Act', 
@@ -312,6 +313,26 @@ class ProductivityExportService
 
         $row = 4;
         
+        // Categorize and Sort productivities
+        $categories = ['A1-8', 'A9-16', 'A1-8 NS', 'A9-16 NS', 'OTHER'];
+        $groupedProd = [];
+        foreach ($categories as $cat) $groupedProd[$cat] = [];
+
+        foreach ($productivities as $p) {
+            $cat = $this->getLineCategory($p->line->name);
+            $groupedProd[$cat][] = $p;
+        }
+
+        $dayGrand = ['mpPln' => 0, 'tgtPln' => 0, 'mpAct' => 0, 'tgtAct' => 0, 'out' => 0];
+        $nsGrand = ['mpPln' => 0, 'tgtPln' => 0, 'mpAct' => 0, 'tgtAct' => 0, 'out' => 0];
+
+        // Sorting within groups naturally
+        foreach ($groupedProd as $cat => &$items) {
+            usort($items, function($a, $b) {
+                return strnatcasecmp($a->line->name, $b->line->name);
+            });
+        }
+
         // Fetch production data for output calculations
         $allLineIds = $productivities->pluck('line_id')->unique();
         $productionData = Production::whereIn('line_id', $allLineIds)
@@ -319,65 +340,133 @@ class ProductivityExportService
             ->with(['items.details'])
             ->get();
 
-        foreach ($productivities as $p) {
-            $groupedLots = $this->groupLots($p->lots);
+        foreach ($categories as $catName) {
+            $items = $groupedProd[$catName];
+            if (empty($items)) continue;
 
-            foreach ($groupedLots as $lotGroup) {
-                $firstLot = $lotGroup[0];
-                
-                // Aggregation for Group
-                $combinedLots = collect($lotGroup)->map(fn($l) => ltrim($l->lot_code, '0'))->join(' + ');
-                $combinedStyles = collect($lotGroup)->map(fn($l) => $l->style_no)->unique()->join(' / ');
-                $combinedBuyers = collect($lotGroup)->map(fn($l) => $l->glGroup->customer->name ?? '-')->unique()->join(' / ');
-                $combinedGLInfo = collect($lotGroup)->map(fn($l) => $l->glGroup->gl_number)->unique()->join(' / ') . ' / ' . $combinedLots;
-                
-                $lotIds = collect($lotGroup)->pluck('id')->toArray();
-                $smv = (float)($firstLot->pivot->smv ?? 0);
-                $mpAct = ($firstLot->pivot->manpower ?? 0) + ($firstLot->pivot->sewer ?? 0);
-                $mpPln = $firstLot->pivot->plan_manpower ?? 0;
-                $tgtPln = collect($lotGroup)->sum(fn($l) => $l->pivot->target_plan ?? 0);
-                $wh = $firstLot->pivot->working_hour ?? 8;
-                $tgtAct = $smv > 0 ? floor(($mpAct * $wh * 60) / $smv) : 0;
+            // Group Header
+            $sheet->mergeCells("A{$row}:M{$row}");
+            $sheet->setCellValue("A{$row}", "GROUP " . $catName);
+            $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EFEFEF');
+            $row++;
 
-                $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
-                $lotItems = $lpItems->filter(fn($pi) => in_array($pi->lot_id, $lotIds));
-                $output = $lotItems->flatMap->details->sum('qty_output');
-                $colors = $lotItems->pluck('color')->unique()->join(', ');
-                $lastStep = collect($lotGroup)->max(fn($l) => $l->pivot->last_step ?? 0);
+            $groupTPln = 0; $groupTAct = 0; $groupOut = 0;
+            $groupMPPln = 0; $groupMPAct = 0;
 
-                $sheet->setCellValue('A' . $row, $p->line->name);
-                $sheet->setCellValue('B' . $row, $combinedLots);
-                $sheet->setCellValue('C' . $row, strtoupper($firstLot->pivot->section ?? 'ALL'));
-                $sheet->setCellValue('D' . $row, $mpPln);
-                $sheet->setCellValue('E' . $row, $tgtPln);
-                $sheet->setCellValue('F' . $row, $mpAct);
-                $sheet->setCellValue('G' . $row, $tgtAct);
-                $sheet->setCellValue('H' . $row, $output);
-                $sheet->setCellValue('I' . $row, $lastStep);
-                
-                // Diff & % vs Target Act
-                $sheet->setCellValue('J' . $row, $output - $tgtAct);
-                $sheet->setCellValue('K' . $row, $tgtAct > 0 ? round(($output / $tgtAct) * 100, 2) . '%' : '0%');
-                
-                // Diff & % vs Target Plan
-                $sheet->setCellValue('L' . $row, $output - $tgtPln);
-                $sheet->setCellValue('M' . $row, $tgtPln > 0 ? round(($output / $tgtPln) * 100, 2) . '%' : '0%');
-                
-                $sheet->setCellValue('N' . $row, ''); // Remarks
+            foreach ($items as $p) {
+                $groupedLots = $this->groupLots($p->lots);
 
-                // Zebra stripes & Borders
-                $range = 'A' . $row . ':N' . $row;
-                $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                if ($row % 2 === 0) {
-                    $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F9F9F9');
+                foreach ($groupedLots as $lotGroup) {
+                    $firstLot = $lotGroup[0];
+                    
+                    $combinedLots = collect($lotGroup)->map(fn($l) => ltrim($l->lot_code, '0'))->join(' + ');
+                    $lotIds = collect($lotGroup)->pluck('id')->toArray();
+                    $smv = (float)($firstLot->pivot->smv ?? 0);
+                    $mpAct = ($firstLot->pivot->manpower ?? 0) + ($firstLot->pivot->sewer ?? 0);
+                    $mpPln = $firstLot->pivot->plan_manpower ?? 0;
+                    $tgtPln = collect($lotGroup)->sum(fn($l) => $l->pivot->target_plan ?? 0);
+                    $wh = $firstLot->pivot->working_hour ?? 8;
+                    $tgtAct = $smv > 0 ? floor(($mpAct * $wh * 60) / $smv) : 0;
+
+                    $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
+                    $lotItems = $lpItems->filter(fn($pi) => in_array($pi->lot_id, $lotIds));
+                    $output = $lotItems->flatMap->details->sum('qty_output');
+                    $lastStep = collect($lotGroup)->max(fn($l) => $l->pivot->last_step ?? 0);
+
+                    $section = strtoupper($firstLot->pivot->section ?? 'ALL');
+                    $lotWithSection = "{$combinedLots} - ({$section})";
+
+                    $sheet->setCellValue('A' . $row, $p->line->name);
+                    $sheet->setCellValue('B' . $row, $lotWithSection);
+                    $sheet->setCellValue('C' . $row, $mpPln);
+                    $sheet->setCellValue('D' . $row, $tgtPln);
+                    $sheet->setCellValue('E' . $row, $mpAct);
+                    $sheet->setCellValue('F' . $row, $tgtAct);
+                    $sheet->setCellValue('G' . $row, $output);
+                    $sheet->setCellValue('H' . $row, $lastStep);
+                    $sheet->setCellValue('I' . $row, $output - $tgtAct);
+                    $sheet->setCellValue('J' . $row, $tgtAct > 0 ? round(($output / $tgtAct) * 100, 2) . '%' : '0%');
+                    $sheet->setCellValue('K' . $row, $output - $tgtPln);
+                    $sheet->setCellValue('L' . $row, $tgtPln > 0 ? round(($output / $tgtPln) * 100, 2) . '%' : '0%');
+                    $sheet->setCellValue('M' . $row, ''); // Remarks
+
+                    $sheet->getStyle('A' . $row . ':M' . $row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                    
+                    $groupTPln += $tgtPln; 
+                    $groupTAct += $tgtAct; 
+                    $groupOut += $output;
+                    $groupMPPln += $mpPln;
+                    $groupMPAct += $mpAct;
+                    
+                    $row++;
                 }
+            }
 
-                $row++;
+            // Group Subtotal
+            $sheet->setCellValue('A' . $row, "TOTAL " . $catName);
+            $sheet->setCellValue('C' . $row, $groupMPPln);
+            $sheet->setCellValue('D' . $row, $groupTPln);
+            $sheet->setCellValue('E' . $row, $groupMPAct);
+            $sheet->setCellValue('F' . $row, $groupTAct);
+            $sheet->setCellValue('G' . $row, $groupOut);
+            
+            // Subtotal Diffs
+            $sheet->setCellValue('I' . $row, $groupOut - $groupTAct);
+            $sheet->setCellValue('J' . $row, $groupTAct > 0 ? round(($groupOut / $groupTAct) * 100, 2) . '%' : '0%');
+            $sheet->setCellValue('K' . $row, $groupOut - $groupTPln);
+            $sheet->setCellValue('L' . $row, $groupTPln > 0 ? round(($groupOut / $groupTPln) * 100, 2) . '%' : '0%');
+
+            $range = 'A' . $row . ':M' . $row;
+            $sheet->getStyle($range)->getFont()->setBold(true);
+            $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9D9D9');
+            $row++;
+
+            // Accumulate Grand Totals
+            $isNS = str_contains(strtoupper($catName), 'NS');
+            if ($isNS) {
+                $nsGrand['mpPln'] += $groupMPPln; $nsGrand['tgtPln'] += $groupTPln;
+                $nsGrand['mpAct'] += $groupMPAct; $nsGrand['tgtAct'] += $groupTAct;
+                $nsGrand['out'] += $groupOut;
+            } else {
+                $dayGrand['mpPln'] += $groupMPPln; $dayGrand['tgtPln'] += $groupTPln;
+                $dayGrand['mpAct'] += $groupMPAct; $dayGrand['tgtAct'] += $groupTAct;
+                $dayGrand['out'] += $groupOut;
             }
         }
 
+        // --- GRAND TOTALS ---
+        $row++;
+        $grandTotals = [
+            ['label' => 'GRAND TOTAL DAY SHIFT (A)', 'data' => $dayGrand, 'color' => 'BDD7EE'],
+            ['label' => 'GRAND TOTAL NIGHT SHIFT (NS)', 'data' => $nsGrand, 'color' => 'F2DCDB']
+        ];
+
+        foreach ($grandTotals as $gt) {
+            $sheet->mergeCells("A{$row}:B{$row}");
+            $sheet->setCellValue("A{$row}", $gt['label']);
+            $sheet->setCellValue('C' . $row, $gt['data']['mpPln']);
+            $sheet->setCellValue('D' . $row, $gt['data']['tgtPln']);
+            $sheet->setCellValue('E' . $row, $gt['data']['mpAct']);
+            $sheet->setCellValue('F' . $row, $gt['data']['tgtAct']);
+            $sheet->setCellValue('G' . $row, $gt['data']['out']);
+            
+            // Diffs
+            $sheet->setCellValue('I' . $row, $gt['data']['out'] - $gt['data']['tgtAct']);
+            $sheet->setCellValue('J' . $row, $gt['data']['tgtAct'] > 0 ? round(($gt['data']['out'] / $gt['data']['tgtAct']) * 100, 2) . '%' : '0%');
+            $sheet->setCellValue('K' . $row, $gt['data']['out'] - $gt['data']['tgtPln']);
+            $sheet->setCellValue('L' . $row, $gt['data']['tgtPln'] > 0 ? round(($gt['data']['out'] / $gt['data']['tgtPln']) * 100, 2) . '%' : '0%');
+
+            $range = 'A' . $row . ':M' . $row;
+            $sheet->getStyle($range)->getFont()->setBold(true)->setSize(11);
+            $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_MEDIUM);
+            $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($gt['color']);
+            $row++;
+        }
+
         // Auto-size columns
-        foreach (range('A', 'N') as $col) {
+        foreach (range('A', 'M') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -420,5 +509,23 @@ class ProductivityExportService
         } catch (\Exception $e) {
             // Log or ignore
         }
+    }
+
+    private function getLineCategory($lineName) {
+        $name = strtoupper($lineName);
+        $isNS = str_contains($name, 'NS');
+        preg_match('/\d+/', $name, $matches);
+        $num = isset($matches[0]) ? (int)$matches[0] : null;
+
+        if ($num === null) return 'OTHER';
+
+        if (!$isNS) {
+            if ($num >= 1 && $num <= 8) return 'A1-8';
+            if ($num >= 9 && $num <= 16) return 'A9-16';
+        } else {
+            if ($num >= 1 && $num <= 8) return 'A1-8 NS';
+            if ($num >= 9 && $num <= 16) return 'A9-16 NS';
+        }
+        return 'OTHER';
     }
 }

@@ -162,6 +162,60 @@ class WipReportController extends Controller
         $lot = Lot::with(['glGroup.customer'])->where('id', $validated['lot_id'])->orWhere('lot_code', $validated['lot_id'])->firstOrFail();
         $colors = $validated['colors'];
 
+        // 1. Fetch CUTTING API data for per-size breakdown
+        // We try both the full lot_code and just the base GL number, and multiple endpoints
+        $lotCode = $lot->lot_code;
+        $baseGl = explode('-', $lotCode)[0] ?? $lotCode;
+        $apiParams = array_unique([$lotCode, $baseGl]);
+        
+        $cuttingDataPerColor = [];
+        $endpoints = [
+            "http://cutting.glaindonesia.lan/api/summary-by-gl?gl_number=",
+            "https://cutting.glaindonesia.lan/api/gl-number/summary-by-gl/"
+        ];
+
+        foreach ($apiParams as $param) {
+            if (empty($param)) continue;
+            foreach ($endpoints as $urlBase) {
+                // Skip if we already got data for this lot/gl in a previous attempt (optimization)
+                if (!empty($cuttingDataPerColor)) break;
+
+                try {
+                    $url = $urlBase . $param;
+                    $response = Http::timeout(5)->withoutVerifying()->get($url);
+                    
+                    if ($response->successful()) {
+                        $resData = $response->json();
+                        // Some endpoints return data in 'data', some directly in root
+                        $root = $resData['data'] ?? $resData;
+                        $summaryByColor = $root['summary_by_color'] ?? [];
+                        
+                        if (!empty($summaryByColor)) {
+                            foreach ($summaryByColor as $colorInfo) {
+                                $cName = strtoupper(trim($colorInfo['color'] ?? ''));
+                                // Broad detection of size keys
+                                $sizesBreakdown = $colorInfo['summary_by_size'] ?? 
+                                                 $colorInfo['details'] ?? 
+                                                 $colorInfo['sizes'] ?? 
+                                                 $colorInfo['size_breakdown'] ?? 
+                                                 $colorInfo['ratio'] ?? [];
+                                
+                                $map = [];
+                                foreach ($sizesBreakdown as $sb) {
+                                    $sName = strtoupper(trim($sb['size'] ?? $sb['size_name'] ?? $sb['size_label'] ?? ''));
+                                    $q = (int)($sb['cut_qty'] ?? $sb['qty'] ?? $sb['total_cut'] ?? $sb['total_qty'] ?? 0);
+                                    if ($sName) $map[$sName] = $q;
+                                }
+                                if (!empty($map)) {
+                                    $cuttingDataPerColor[$cName] = $map;
+                                }
+                            }
+                        }
+                    }
+                } catch (\Exception $e) { }
+            }
+        }
+
         // 1. Fetch ALL Raw Production Data for all colors
         // Note: Production table has BOTH qty_input and qty_output in the details
         $allData = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
@@ -179,17 +233,15 @@ class WipReportController extends Controller
             )
             ->get();
 
-        // Check if I joined correctly. ProductionItemDetail has production_item_id.
-        // Wait, ProductionItem has production_id.
-        // My previous join in step 212 was:
-        /*
-        $allInputData = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
-            ->join('productions', 'production_items.production_id', '=', 'productions.id')
-            ->join('lines', 'productions.line_id', '=', 'lines.id')
-        */
-        // That seems correct. Let me re-verify ProductionItem relationship.
-
         $sizes = $allData->pluck('size_name')->unique()->values()->toArray();
+
+        // Merge with sizes from Cutting API
+        foreach ($cuttingDataPerColor as $cMap) {
+            foreach (array_keys($cMap) as $s) {
+                if (!in_array($s, $sizes)) $sizes[] = $s;
+            }
+        }
+
         $sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL'];
         usort($sizes, function($a, $b) use ($sizeOrder) {
             $posA = array_search(strtoupper($a), $sizeOrder);
@@ -204,6 +256,22 @@ class WipReportController extends Controller
         $reports = [];
         foreach ($colors as $color) {
             $colorData = $allData->where('color', $color);
+
+            // Find Matching color in Cutting Data (Fuzzy match for "NEO NATURAL" etc.)
+            $targetColor = strtoupper(trim($color));
+            $cutMap = $cuttingDataPerColor[$targetColor] ?? null;
+
+            if (!$cutMap) {
+                $cleanTarget = str_replace([' ', '-', '_'], '', $targetColor);
+                foreach ($cuttingDataPerColor as $apiColor => $map) {
+                    $cleanApi = str_replace([' ', '-', '_'], '', $apiColor);
+                    if ($cleanTarget === $cleanApi) {
+                        $cutMap = $map;
+                        break;
+                    }
+                }
+            }
+            $cutMap = $cutMap ?? [];
 
             // Group Input per color (qty_input > 0)
             $groupedInput = $colorData->where('qty_input', '>', 0)
@@ -250,8 +318,20 @@ class WipReportController extends Controller
                     return $row;
                 })->values();
 
+            // Prepare per-size cutting row
+            $cuttingRow = [
+                'sizes' => [],
+                'total' => 0
+            ];
+            foreach ($sizes as $s) {
+                $val = (int) ($cutMap[strtoupper($s)] ?? 0);
+                $cuttingRow['sizes'][$s] = $val;
+                $cuttingRow['total'] += $val;
+            }
+
             $reports[] = [
                 'color' => $color,
+                'cutting_qty' => $cuttingRow,
                 'input' => $groupedInput,
                 'output' => $groupedOutput
             ];
