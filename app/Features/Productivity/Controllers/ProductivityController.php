@@ -202,8 +202,9 @@ class ProductivityController extends Controller
     public function exportByDate(Request $request, \App\Features\Productivity\Services\ProductivityExportService $service)
     {
         $date = $request->get('date', now()->toDateString());
-        $lineIds = $request->get('line_ids'); // Expecting array
-        $filePath = $service->exportByDate($date, $lineIds);
+        $lineIds = $request->get('line_ids');
+        $type = $request->get('type', 'productivity');
+        $filePath = $service->exportByDate($date, $lineIds, $type);
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
 }

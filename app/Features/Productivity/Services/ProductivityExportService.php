@@ -21,7 +21,7 @@ class ProductivityExportService
         return $this->generateFile([$productivity], 'Productivity_' . $productivity->line->name . '_' . $productivity->date);
     }
 
-    public function exportByDate($date, $lineIds = null)
+    public function exportByDate($date, $lineIds = null, $type = 'productivity')
     {
         $query = Productivity::with(['line', 'lots.glGroup.customer'])
             ->whereDate('date', $date);
@@ -32,6 +32,10 @@ class ProductivityExportService
 
         $productivities = $query->get();
         
+        if ($type === 'sewing_output') {
+            return $this->generateSewingOutputFile($productivities, 'Sewing_Output_' . $date, $date);
+        }
+
         return $this->generateFile($productivities, 'Daily_Productivity_' . $date);
     }
 
@@ -80,12 +84,11 @@ class ProductivityExportService
 
         $row = 1;
         foreach ($productivities as $productivity) {
-            // Re-load pivot media for each
-            $productivity->lots->each(function($l) { $l->pivot->load('media'); });
+            $groupedLots = $this->groupLots($productivity->lots);
 
-            foreach ($productivity->lots as $index => $lot) {
-                $this->drawStyleBlock($sheet, 'B', $row, $lot, $productivity, $productionData, $cuttingCache);
-                $row += 8; // Increased gap slightly
+            foreach ($groupedLots as $lotGroup) {
+                $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
+                $row += 8;
             }
         }
 
@@ -97,8 +100,11 @@ class ProductivityExportService
         return $tempPath;
     }
 
-    private function drawStyleBlock($sheet, $startCol, $row, $lot, $productivity, $productionData, $cuttingCache)
+    private function drawStyleBlock($sheet, $startCol, $row, $lotGroup, $productivity, $productionData, $cuttingCache)
     {
+        $firstLot = $lotGroup[0];
+        $firstLot->pivot->load('media');
+
         $c1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($startCol) - 1);
         $c2 = $startCol;
         $c3 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 2);
@@ -106,6 +112,16 @@ class ProductivityExportService
         $c5 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 4);
         $c6 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 5);
         $c7 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 6);
+
+        // Aggregation for Group
+        $combinedLots = collect($lotGroup)->map(fn($l) => ltrim($l->lot_code, '0'))->join(' + ');
+        $combinedGLs = collect($lotGroup)->map(fn($l) => $l->glGroup->gl_number)->unique()->join(' / ');
+        $lotIds = collect($lotGroup)->pluck('id')->toArray();
+        $smv = (float)($firstLot->pivot->smv ?? 0);
+        $mp = (int)($firstLot->pivot->manpower ?? 0);
+        $mg = (int)($firstLot->pivot->sewer ?? 0);
+        $wh = (float)($firstLot->pivot->working_hour ?? 8);
+        $targetPlanTotal = collect($lotGroup)->sum(fn($l) => $l->pivot->target_plan ?? 0);
 
         // Styling Defaults
         $headerStyle = [
@@ -128,7 +144,7 @@ class ProductivityExportService
         ];
 
         // --- ROW 1 (Header: Line & Target Output) ---
-        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); // Line Name Vertical
+        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); 
         $sheet->setCellValue("{$c1}{$row}", $productivity->line->name);
         $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
         $sheet->getStyle("{$c1}{$row}")->getAlignment()->setTextRotation(90);
@@ -137,23 +153,18 @@ class ProductivityExportService
         $sheet->setCellValue("{$c2}{$row}", "Sewer/Helper | 车工/外勤工");
         $sheet->getStyle("{$c2}{$row}")->applyFromArray($labelStyle);
 
-        // CHANGE: "Buyer" replaced with "Target Output" value from pivot
         $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
-        $targetPlan = number_format($lot->pivot->target_plan ?? 0, 0, ',', '.');
-        $sheet->setCellValue("{$c3}{$row}", "TARGET OUTPUT: " . $targetPlan);
+        $sheet->setCellValue("{$c3}{$row}", "TARGET OUTPUT: " . number_format($targetPlanTotal, 0, ',', '.'));
         $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle);
-        $sheet->getStyle("{$c3}{$row}")->getFill()->getStartColor()->setRGB('FFEB9C'); // Light yellow background
+        $sheet->getStyle("{$c3}{$row}")->getFill()->getStartColor()->setRGB('FFEB9C');
         
         // --- ROW 2 (MP & MG) ---
-        $mp = (int)($lot->pivot->manpower ?? $productivity->manpower);
-        $mg = (int)($lot->pivot->sewer ?? $productivity->sewer);
         $sheet->setCellValue("{$c3}" . ($row + 1), $mp);
         $sheet->setCellValue("{$c4}" . ($row + 1), $mg);
         $sheet->getStyle("{$c3}" . ($row + 1))->applyFromArray($dataStyle);
         $sheet->getStyle("{$c4}" . ($row + 1))->applyFromArray($dataStyle);
 
         // --- ROW 3 (Working Hour) ---
-        $wh = (float)($lot->pivot->working_hour ?? $productivity->working_hour);
         $sheet->setCellValue("{$c2}" . ($row + 2), "working hour | 工资工时");
         $sheet->getStyle("{$c2}" . ($row + 2))->applyFromArray($labelStyle);
         
@@ -171,7 +182,6 @@ class ProductivityExportService
         $sheet->getStyle("{$c3}" . ($row + 3))->applyFromArray($dataStyle);
 
         // --- ROW 5 (Factory IE / SMV) ---
-        $smv = (float)($lot->pivot->smv ?? $productivity->smv);
         $sheet->setCellValue("{$c2}" . ($row + 4), "Factory IE(工厂 IE)");
         $sheet->getStyle("{$c2}" . ($row + 4))->applyFromArray($labelStyle);
         
@@ -189,18 +199,18 @@ class ProductivityExportService
 
         // --- CENTER COLUMN (Style / Lot / Image) ---
         $sheet->mergeCells("{$c5}{$row}:{$c5}" . ($row + 1));
-        $sheet->setCellValue("{$c5}{$row}", $lot->glGroup->gl_number);
+        $sheet->setCellValue("{$c5}{$row}", $combinedGLs);
         $sheet->getStyle("{$c5}{$row}")->applyFromArray($headerStyle);
         $sheet->getStyle("{$c5}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFFF');
 
         $sheet->mergeCells("{$c5}" . ($row + 2) . ":{$c5}" . ($row + 2));
-        $sheet->setCellValue("{$c5}" . ($row + 2), $lot->lot_code);
+        $sheet->setCellValue("{$c5}" . ($row + 2), $combinedLots);
         $sheet->getStyle("{$c5}" . ($row + 2))->applyFromArray($labelStyle);
 
         // Image Placeholder
         $sheet->mergeCells("{$c5}" . ($row + 3) . ":{$c5}" . ($row + 5));
-        if ($lot->pivot->media && $lot->pivot->media->file_path) {
-            $this->addDrawing($sheet, $c5, $row + 3, $lot->pivot->media->file_path);
+        if ($firstLot->pivot->media && $firstLot->pivot->media->file_path) {
+            $this->addDrawing($sheet, $c5, $row + 3, $firstLot->pivot->media->file_path);
         }
 
         // --- RIGHT COLUMN (Metrics) ---
@@ -208,8 +218,7 @@ class ProductivityExportService
         $sheet->getStyle("{$c6}{$row}")->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
-        // Order Qty from Cutting
-        $orderQty = $cuttingCache[$lot->lot_code] ?? 0;
+        $orderQty = collect($lotGroup)->sum(fn($l) => $cuttingCache[$l->lot_code] ?? 0);
         $sheet->setCellValue("{$c7}{$row}", $orderQty);
         $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         
@@ -225,9 +234,8 @@ class ProductivityExportService
         $sheet->getStyle("{$c6}" . ($row + 2))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 2))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
-        // Output from production tables
         $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
-        $output = $lpItems->filter(fn($i) => $i->lot_id == $lot->id)->flatMap->details->sum('qty_output');
+        $output = $lpItems->filter(fn($i) => in_array($i->lot_id, $lotIds))->flatMap->details->sum('qty_output');
 
         $sheet->setCellValue("{$c7}" . ($row + 2), number_format($output, 0, ',', '.'));
         $sheet->getStyle("{$c7}" . ($row + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
@@ -249,9 +257,10 @@ class ProductivityExportService
         $sheet->setCellValue("{$c7}" . ($row + 4), number_format($target - $output, 0, ',', '.'));
         $sheet->getStyle("{$c7}" . ($row + 4))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        // EXTRA DECORATION: Orange bottom for OFFLINE/etc
+        // EXTRA DECORATION: Orange bottom for Section Label
         $sheet->mergeCells("{$c5}" . ($row+6) . ":{$c5}" . ($row+6));
-        $sheet->setCellValue("{$c5}" . ($row+6), "OFFLINE");
+        $section = strtoupper($firstLot->pivot->section ?? 'ALL');
+        $sheet->setCellValue("{$c5}" . ($row+6), $section);
         $sheet->getStyle("{$c5}" . ($row+6))->applyFromArray($headerStyle);
         $sheet->getStyle("{$c5}" . ($row+6))->getFill()->getStartColor()->setRGB('FFC000');
 
@@ -268,6 +277,129 @@ class ProductivityExportService
         $sheet->getColumnDimension($c5)->setWidth(25);
         $sheet->getColumnDimension($c6)->setWidth(15);
         $sheet->getColumnDimension($c7)->setWidth(15);
+    }
+
+    private function generateSewingOutputFile($productivities, $fileName, $date)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Sewing Output Summary');
+
+        // Header Title
+        $sheet->mergeCells('A1:O1');
+        $sheet->setCellValue('A1', 'DAILY SEWING OUTPUT SUMMARY - ' . $date);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $headers = [
+            'Line', 'LOT', 'Sect', 
+            'MP Plan', 'Target Plan', 'MP Actual', 'Target Act', 
+            'Output Daily', 'Last Step', 
+            'DIFF Do Vs Targ', '% T.Act', 
+            'Diff Do vs Plan', '% T.Plan', 
+            'Remarks'
+        ];
+
+        $col = 'A';
+        $row = 3;
+        foreach ($headers as $h) {
+            $sheet->setCellValue($col . $row, $h);
+            $sheet->getStyle($col . $row)->getFont()->setBold(true);
+            $sheet->getStyle($col . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9D9D9');
+            $sheet->getStyle($col . $row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $col++;
+        }
+
+        $row = 4;
+        
+        // Fetch production data for output calculations
+        $allLineIds = $productivities->pluck('line_id')->unique();
+        $productionData = Production::whereIn('line_id', $allLineIds)
+            ->whereDate('production_date', $date)
+            ->with(['items.details'])
+            ->get();
+
+        foreach ($productivities as $p) {
+            $groupedLots = $this->groupLots($p->lots);
+
+            foreach ($groupedLots as $lotGroup) {
+                $firstLot = $lotGroup[0];
+                
+                // Aggregation for Group
+                $combinedLots = collect($lotGroup)->map(fn($l) => ltrim($l->lot_code, '0'))->join(' + ');
+                $combinedStyles = collect($lotGroup)->map(fn($l) => $l->style_no)->unique()->join(' / ');
+                $combinedBuyers = collect($lotGroup)->map(fn($l) => $l->glGroup->customer->name ?? '-')->unique()->join(' / ');
+                $combinedGLInfo = collect($lotGroup)->map(fn($l) => $l->glGroup->gl_number)->unique()->join(' / ') . ' / ' . $combinedLots;
+                
+                $lotIds = collect($lotGroup)->pluck('id')->toArray();
+                $smv = (float)($firstLot->pivot->smv ?? 0);
+                $mpAct = ($firstLot->pivot->manpower ?? 0) + ($firstLot->pivot->sewer ?? 0);
+                $mpPln = $firstLot->pivot->plan_manpower ?? 0;
+                $tgtPln = collect($lotGroup)->sum(fn($l) => $l->pivot->target_plan ?? 0);
+                $wh = $firstLot->pivot->working_hour ?? 8;
+                $tgtAct = $smv > 0 ? floor(($mpAct * $wh * 60) / $smv) : 0;
+
+                $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
+                $lotItems = $lpItems->filter(fn($pi) => in_array($pi->lot_id, $lotIds));
+                $output = $lotItems->flatMap->details->sum('qty_output');
+                $colors = $lotItems->pluck('color')->unique()->join(', ');
+                $lastStep = collect($lotGroup)->max(fn($l) => $l->pivot->last_step ?? 0);
+
+                $sheet->setCellValue('A' . $row, $p->line->name);
+                $sheet->setCellValue('B' . $row, $combinedLots);
+                $sheet->setCellValue('C' . $row, strtoupper($firstLot->pivot->section ?? 'ALL'));
+                $sheet->setCellValue('D' . $row, $mpPln);
+                $sheet->setCellValue('E' . $row, $tgtPln);
+                $sheet->setCellValue('F' . $row, $mpAct);
+                $sheet->setCellValue('G' . $row, $tgtAct);
+                $sheet->setCellValue('H' . $row, $output);
+                $sheet->setCellValue('I' . $row, $lastStep);
+                
+                // Diff & % vs Target Act
+                $sheet->setCellValue('J' . $row, $output - $tgtAct);
+                $sheet->setCellValue('K' . $row, $tgtAct > 0 ? round(($output / $tgtAct) * 100, 2) . '%' : '0%');
+                
+                // Diff & % vs Target Plan
+                $sheet->setCellValue('L' . $row, $output - $tgtPln);
+                $sheet->setCellValue('M' . $row, $tgtPln > 0 ? round(($output / $tgtPln) * 100, 2) . '%' : '0%');
+                
+                $sheet->setCellValue('N' . $row, ''); // Remarks
+
+                // Zebra stripes & Borders
+                $range = 'A' . $row . ':N' . $row;
+                $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                if ($row % 2 === 0) {
+                    $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F9F9F9');
+                }
+
+                $row++;
+            }
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'N') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $finalName = $fileName . '.xlsx';
+        $tempPath = storage_path('app/public/' . $finalName);
+        $writer->save($tempPath);
+
+        return $tempPath;
+    }
+
+    private function groupLots($lots)
+    {
+        $groups = [];
+        foreach ($lots as $l) {
+            $configKey = "{$l->pivot->smv}-{$l->pivot->manpower}-{$l->pivot->working_hour}-{$l->pivot->section}";
+            if (!isset($groups[$configKey])) {
+                $groups[$configKey] = [];
+            }
+            $groups[$configKey][] = $l;
+        }
+        return array_values($groups);
     }
 
     private function addDrawing($sheet, $col, $row, $filePath)
