@@ -283,7 +283,8 @@ class ProductivityExportService
         $sheet->setCellValue("{$c6}" . ($row + 4), "Bal. Qty");
         $sheet->getStyle("{$c6}" . ($row + 4))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 4))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->setCellValue("{$c7}" . ($row + 4), number_format($target - $output, 0, ',', '.'));
+        // Formula: Output - Target (Minus means shortage)
+        $sheet->setCellValue("{$c7}" . ($row + 4), number_format($output - $target, 0, ',', '.'));
         $sheet->getStyle("{$c7}" . ($row + 4))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         // EXTRA DECORATION: Orange bottom for Section Label
