@@ -11,6 +11,7 @@ Route::get('/dashboard', [ProductionController::class, 'dashboard'])->middleware
 Route::get('/lines', [ProductionController::class, 'lines']); // Public or semi-public
 Route::get('/summary', [ProductionController::class, 'summary']);
 Route::get('/bulk-summary', [ProductionController::class, 'bulkSummary']);
+Route::get('/history', [ProductionController::class, 'history']);
 Route::get('/{id}', [ProductionController::class, 'show'])->middleware('permission:production.read');
 Route::post('/', [ProductionController::class, 'store'])->middleware('permission:production.create');
 Route::put('/{id}', [ProductionController::class, 'update'])->middleware('permission:production.update');

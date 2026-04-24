@@ -232,9 +232,39 @@ class ProductionController extends Controller
         });
     }
 
+    public function history(Request $request)
+    {
+        $validated = $request->validate([
+            'lot_id' => 'required|exists:lots,id',
+            'color' => 'required|string',
+            'size_name' => 'required|string',
+        ]);
+
+        $history = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+            ->join('productions', 'production_items.production_id', '=', 'productions.id')
+            ->leftJoin('lines', 'productions.line_id', '=', 'lines.id')
+            ->where('production_items.lot_id', $validated['lot_id'])
+            ->where('production_items.color', $validated['color'])
+            ->where('production_item_details.size_name', $validated['size_name'])
+            ->select(
+                'productions.production_date',
+                'lines.name as line_name',
+                'production_item_details.qty_input',
+                'production_item_details.qty_output'
+            )
+            ->orderBy('productions.production_date', 'DESC')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $history
+        ]);
+    }
+
     public function destroy($id)
     {
         Production::findOrFail($id)->delete();
         return response()->json(['status' => 'success', 'message' => 'Production log deleted']);
     }
 }
+
