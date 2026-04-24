@@ -136,6 +136,7 @@ class ProductionController extends Controller
             'items.*.lot_id' => 'required|exists:lots,id',
             'items.*.color' => 'required|string',
             'items.*.section' => 'nullable|string',
+            'items.*.remarks' => 'nullable|string',
             'items.*.sizes' => 'required|array',
             'items.*.sizes.*.size_name' => 'required|string',
             'items.*.sizes.*.qty_input' => 'required|integer',
@@ -157,7 +158,8 @@ class ProductionController extends Controller
                 $item = $production->items()->create([
                     'lot_id' => $itemData['lot_id'],
                     'color' => $itemData['color'],
-                    'section' => $itemData['section'] ?? 'all'
+                    'section' => $itemData['section'] ?? 'all',
+                    'remarks' => $itemData['remarks'] ?? null
                 ]);
 
                 foreach ($itemData['sizes'] as $sizeData) {
@@ -194,6 +196,7 @@ class ProductionController extends Controller
             'items.*.lot_id' => 'required|exists:lots,id',
             'items.*.color' => 'required|string',
             'items.*.section' => 'nullable|string',
+            'items.*.remarks' => 'nullable|string',
             'items.*.sizes' => 'required|array',
             'items.*.sizes.*.size_name' => 'required|string',
             'items.*.sizes.*.qty_input' => 'required|integer',
@@ -217,7 +220,8 @@ class ProductionController extends Controller
                 $item = $production->items()->create([
                     'lot_id' => $itemData['lot_id'],
                     'color' => $itemData['color'],
-                    'section' => $itemData['section'] ?? 'all'
+                    'section' => $itemData['section'] ?? 'all',
+                    'remarks' => $itemData['remarks'] ?? null
                 ]);
 
                 foreach ($itemData['sizes'] as $sizeData) {
