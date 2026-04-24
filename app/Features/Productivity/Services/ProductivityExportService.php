@@ -103,7 +103,10 @@ class ProductivityExportService
                 
                 $lotIds = collect($lotGroup)->pluck('id')->toArray();
                 $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
-                $output = $lpItems->filter(fn($i) => in_array($i->lot_id, $lotIds))->flatMap->details->sum('qty_output');
+                $output = $lpItems->filter(function($i) use ($lotIds) {
+                    $section = strtoupper($i->section ?? 'ALL');
+                    return in_array($i->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
+                })->flatMap->details->sum('qty_output');
 
                 $allTotals['sewers'] += $mg;
                 $allTotals['manpower'] += $mp;
@@ -264,7 +267,10 @@ class ProductivityExportService
         $sheet->getStyle("{$c6}" . ($row + 2))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
         $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
-        $output = $lpItems->filter(fn($i) => in_array($i->lot_id, $lotIds))->flatMap->details->sum('qty_output');
+        $output = $lpItems->filter(function($i) use ($lotIds) {
+            $section = strtoupper($i->section ?? 'ALL');
+            return in_array($i->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
+        })->flatMap->details->sum('qty_output');
 
         $sheet->setCellValue("{$c7}" . ($row + 2), number_format($output, 0, ',', '.'));
         $sheet->getStyle("{$c7}" . ($row + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
@@ -399,7 +405,10 @@ class ProductivityExportService
                     $tgtAct = $smv > 0 ? floor(($mpAct * $wh * 60) / $smv) : 0;
 
                     $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
-                    $lotItems = $lpItems->filter(fn($pi) => in_array($pi->lot_id, $lotIds));
+                    $lotItems = $lpItems->filter(function($pi) use ($lotIds) {
+                        $section = strtoupper($pi->section ?? 'ALL');
+                        return in_array($pi->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
+                    });
                     $output = $lotItems->flatMap->details->sum('qty_output');
                     $lastStep = collect($lotGroup)->max(fn($l) => $l->pivot->last_step ?? 0);
 
