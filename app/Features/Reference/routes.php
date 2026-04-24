@@ -5,33 +5,42 @@ use App\Features\Reference\Controllers\CustomerController;
 use App\Features\Reference\Controllers\GlGroupController;
 use App\Features\Reference\Controllers\LotController;
 use App\Features\Reference\Controllers\ImportController;
-
-Route::prefix('customers')->group(function () {
-    Route::get('/', [CustomerController::class, 'index']);
-    Route::post('/', [CustomerController::class, 'store']);
-    Route::get('/{id}', [CustomerController::class, 'show']);
-    Route::put('/{id}', [CustomerController::class, 'update']);
-    Route::delete('/{id}', [CustomerController::class, 'destroy']);
-});
-
 use App\Features\Reference\Controllers\GlSummaryController;
 
-Route::prefix('gl-groups')->group(function () {
-    Route::get('/', [GlGroupController::class, 'index']);
-    Route::get('/{id}/summary', [GlSummaryController::class, 'show']);
-    Route::post('/', [GlGroupController::class, 'store']);
-    Route::get('/{id}', [GlGroupController::class, 'show']);
-    Route::put('/{id}', [GlGroupController::class, 'update']);
-    Route::delete('/{id}', [GlGroupController::class, 'destroy']);
+Route::middleware('permission:reference.read')->group(function() {
+    Route::prefix('customers')->group(function () {
+        Route::get('/', [CustomerController::class, 'index']);
+        Route::get('/{id}', [CustomerController::class, 'show']);
+    });
+    
+    Route::prefix('gl-groups')->group(function () {
+        Route::get('/', [GlGroupController::class, 'index']);
+        Route::get('/{id}/summary', [GlSummaryController::class, 'show']);
+        Route::get('/{id}', [GlGroupController::class, 'show']);
+    });
+    
+    Route::prefix('lots')->group(function () {
+        Route::get('/', [LotController::class, 'index']);
+        Route::get('/list', [LotController::class, 'list']);
+        Route::get('/{id}', [LotController::class, 'show']);
+    });
 });
 
-Route::prefix('lots')->group(function () {
-    Route::get('/', [LotController::class, 'index']);
-    Route::get('/list', [LotController::class, 'list']);
-    Route::post('/', [LotController::class, 'store']);
-    Route::get('/{id}', [LotController::class, 'show']);
-    Route::put('/{id}', [LotController::class, 'update']);
-    Route::delete('/{id}', [LotController::class, 'destroy']);
+Route::middleware('permission:reference.create')->group(function() {
+    Route::post('/customers', [CustomerController::class, 'store']);
+    Route::post('/gl-groups', [GlGroupController::class, 'store']);
+    Route::post('/lots', [LotController::class, 'store']);
+    Route::post('/import', [ImportController::class, 'upload']);
 });
 
-Route::post('/import', [ImportController::class, 'upload']);
+Route::middleware('permission:reference.update')->group(function() {
+    Route::put('/customers/{id}', [CustomerController::class, 'update']);
+    Route::put('/gl-groups/{id}', [GlGroupController::class, 'update']);
+    Route::put('/lots/{id}', [LotController::class, 'update']);
+});
+
+Route::middleware('permission:reference.delete')->group(function() {
+    Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
+    Route::delete('/gl-groups/{id}', [GlGroupController::class, 'destroy']);
+    Route::delete('/lots/{id}', [LotController::class, 'destroy']);
+});

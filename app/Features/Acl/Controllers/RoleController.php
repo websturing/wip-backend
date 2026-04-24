@@ -69,7 +69,8 @@ class RoleController extends Controller
                         return [
                             'id' => $p->id,
                             'name' => $p->name,
-                            'action' => $p->action
+                            'action' => $p->action,
+                            'label' => $p->label
                         ];
                     })
                 ];

@@ -8,52 +8,68 @@ use Illuminate\Support\Facades\File;
 
 class AclService
 {
-    protected $actions = ['create', 'read', 'update', 'delete'];
-
-    public function getFeatures()
+    /**
+     * MANUAL PERMISSION CATALOG
+     * Edit this list to define exactly what permissions are available in the system.
+     */
+    public function getDefinitions()
     {
-        $featuresPath = app_path('Features');
-        if (!File::exists($featuresPath)) {
-            return [];
-        }
-
-        $directories = File::directories($featuresPath);
-        $features = array_map(function($dir) {
-            return basename($dir);
-        }, $directories);
-
-        return $features;
-    }
-
-    public function getAllPermissions()
-    {
-        $features = $this->getFeatures();
-        $allPermissions = [];
-
-        foreach ($features as $feature) {
-            foreach ($this->actions as $action) {
-                $allPermissions[] = [
-                    'feature' => $feature,
-                    'action' => $action,
-                    'name' => strtolower($feature) . '.' . $action
-                ];
-            }
-        }
-
-        return $allPermissions;
+        return [
+            'Access Control' => [
+                'acl.read' => 'View Users & Roles',
+                'acl.update' => 'Manage System Permissions',
+            ],
+            'Production' => [
+                'production.read' => 'View Production Dashboard & Feed',
+                'production.create' => 'Log Daily Production Output',
+                'production.update' => 'Refine/Edit Production Records',
+                'production.delete' => 'Remove Erroneous Entries',
+            ],
+            'Master Data' => [
+                'reference.read' => 'View Master References (Lots, Buyers)',
+                'reference.create' => 'Import/Add New Garment References',
+                'reference.update' => 'Modify Existing Reference Data',
+                'reference.delete' => 'Delete Standard References',
+            ],
+            'Industrial Engineering' => [
+                'ie_layout.read' => 'View Layouts & Manpower Calculations',
+                'ie_layout.create' => 'Initialize New IE Layouts',
+                'ie_layout.update' => 'Adjust Cycle Times & Line Balancing',
+                'ie_layout.delete' => 'Remove IE Layout Records',
+            ],
+            'WIP & Packing' => [
+                'wip.read' => 'Track Real-time WIP Levels',
+                'wip.create' => 'Log Packing & Shipment Progress',
+                'wip.update' => 'Modify WIP Adjustments',
+                'wip.delete' => 'Clear WIP Records',
+            ],
+        ];
     }
 
     public function syncPermissions()
     {
-        $permissions = $this->getAllPermissions();
-        foreach ($permissions as $p) {
-            Permission::firstOrCreate([
-                'name' => $p['name']
-            ], [
-                'feature' => $p['feature'],
-                'action' => $p['action']
-            ]);
+        $definitions = $this->getDefinitions();
+        $validNames = [];
+
+        foreach ($definitions as $group => $perms) {
+            foreach ($perms as $name => $label) {
+                $validNames[] = $name;
+                
+                // Get technical action (last part of name)
+                $action = last(explode('.', $name));
+
+                Permission::updateOrCreate([
+                    'name' => $name
+                ], [
+                    'label' => $label,
+                    'feature' => $group,
+                    'action' => $action
+                ]);
+            }
         }
+
+        // Optional: Remove permissions no longer in catalog
+        Permission::whereNotIn('name', $validNames)->delete();
 
         // Auto-assign all permissions to Administrator role
         $adminRole = Role::where('name', 'Administrator')->first();

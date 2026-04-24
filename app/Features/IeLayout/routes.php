@@ -5,24 +5,33 @@ use App\Features\IeLayout\Controllers\IeLayoutController;
 use App\Features\IeLayout\Controllers\OperationController;
 use App\Features\IeLayout\Controllers\IeLayoutManpowerController;
 
-// 1. Specific Feature Routes (Prefixes)
-Route::prefix('operations')->group(function () {
-    Route::get('/', [OperationController::class, 'index']);
-    Route::post('/', [OperationController::class, 'store']);
-    Route::get('/{id}', [OperationController::class, 'show']);
-    Route::put('/{id}', [OperationController::class, 'update']);
-    Route::delete('/{id}', [OperationController::class, 'destroy']);
+Route::middleware('permission:ie_layout.read')->group(function() {
+    Route::get('/', [IeLayoutController::class, 'index']);
+    Route::get('/{id}', [IeLayoutController::class, 'show']);
+    
+    Route::prefix('operations')->group(function () {
+        Route::get('/', [OperationController::class, 'index']);
+        Route::get('/{id}', [OperationController::class, 'show']);
+    });
+    
+    Route::prefix('manpower')->group(function () {
+        Route::get('/', [IeLayoutManpowerController::class, 'index']);
+    });
 });
 
-Route::prefix('manpower')->group(function () {
-    Route::get('/', [IeLayoutManpowerController::class, 'index']);
-    Route::post('/', [IeLayoutManpowerController::class, 'store']);
-    Route::delete('/{id}', [IeLayoutManpowerController::class, 'destroy']);
+Route::middleware('permission:ie_layout.create')->group(function() {
+    Route::post('/', [IeLayoutController::class, 'store']);
+    Route::post('/operations', [OperationController::class, 'store']);
+    Route::post('/manpower', [IeLayoutManpowerController::class, 'store']);
 });
 
-// 2. Base Resource Routes (Generic IDs)
-Route::get('/', [IeLayoutController::class, 'index']);
-Route::post('/', [IeLayoutController::class, 'store']);
-Route::get('/{id}', [IeLayoutController::class, 'show']);
-Route::put('/{id}', [IeLayoutController::class, 'update']);
-Route::delete('/{id}', [IeLayoutController::class, 'destroy']);
+Route::middleware('permission:ie_layout.update')->group(function() {
+    Route::put('/{id}', [IeLayoutController::class, 'update']);
+    Route::put('/operations/{id}', [OperationController::class, 'update']);
+});
+
+Route::middleware('permission:ie_layout.delete')->group(function() {
+    Route::delete('/{id}', [IeLayoutController::class, 'destroy']);
+    Route::delete('/operations/{id}', [OperationController::class, 'destroy']);
+    Route::delete('/manpower/{id}', [IeLayoutManpowerController::class, 'destroy']);
+});
