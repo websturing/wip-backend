@@ -89,11 +89,20 @@ class ProductionController extends Controller
         $validated = $request->validate([
             'lot_id' => 'required|exists:lots,id',
             'color' => 'required|string',
+            'exclude_production_id' => 'nullable|integer',
         ]);
 
-        $summary = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+        $query = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
             ->where('production_items.lot_id', $validated['lot_id'])
-            ->where('production_items.color', $validated['color'])
+            ->where('production_items.color', $validated['color']);
+
+        // Exclude the current production record when editing
+        // to avoid double-counting the record's own output in the balance
+        if (!empty($validated['exclude_production_id'])) {
+            $query->where('production_items.production_id', '!=', $validated['exclude_production_id']);
+        }
+
+        $summary = $query
             ->select('size_name', DB::raw('SUM(qty_input) as total_input'), DB::raw('SUM(qty_output) as total_output'))
             ->groupBy('size_name')
             ->get()
