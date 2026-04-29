@@ -29,7 +29,25 @@ class ProductionController extends Controller
     {
         $range = $request->get('range', 7);
         $days = (int) $range;
-        $startDate = now()->subDays($days - 1)->toDateString();
+
+        // Anchor range from the LAST recorded input date (not today)
+        $lastInputDate = Production::max('production_date');
+
+        if (!$lastInputDate) {
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'recent_entries'  => [],
+                    'output_chart'    => [],
+                    'active_lines'    => [],
+                    'last_input_date' => null,
+                    'today_date'      => now()->toDateString(),
+                ]
+            ]);
+        }
+
+        $endDate   = $lastInputDate;
+        $startDate = \Carbon\Carbon::parse($lastInputDate)->subDays($days - 1)->toDateString();
 
         // 1. Last 10 GL/Lot entries
         $lastEntries = \App\Features\Production\Models\ProductionItem::with(['lot.glGroup.customer', 'production.line'])
@@ -41,6 +59,7 @@ class ProductionController extends Controller
         $outputChartQuery = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
             ->join('productions', 'production_items.production_id', '=', 'productions.id')
             ->whereDate('productions.production_date', '>=', $startDate)
+            ->whereDate('productions.production_date', '<=', $endDate)
             ->select(
                 DB::raw('DATE(productions.production_date) as date_val'),
                 DB::raw('SUM(qty_input) as total_input'),
@@ -59,6 +78,7 @@ class ProductionController extends Controller
 
         // 3. Active lines in the range
         $activeLines = Production::whereDate('production_date', '>=', $startDate)
+            ->whereDate('production_date', '<=', $endDate)
             ->with(['line', 'items.details'])
             ->get()
             ->pluck('line')
@@ -69,9 +89,11 @@ class ProductionController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'recent_entries' => $lastEntries,
-                'output_chart' => $outputChart,
-                'active_lines' => $activeLines
+                'recent_entries'  => $lastEntries,
+                'output_chart'    => $outputChart,
+                'active_lines'    => $activeLines,
+                'last_input_date' => $lastInputDate,
+                'today_date'      => now()->toDateString(),
             ]
         ]);
     }
