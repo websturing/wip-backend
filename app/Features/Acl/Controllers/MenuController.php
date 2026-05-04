@@ -86,6 +86,22 @@ class MenuController extends Controller
                 'icon' => 'solar:shield-check-linear',
                 'order' => 5,
                 'permission' => 'acl.read',
+                 'children' => [
+                    [
+                        'id' => 'm5-1',
+                        'name' => 'Roles',
+                        'path' => '/admin/acl?tab=roles',
+                        'icon' => 'solar:user-speak-rounded-bold-duotone',
+                        'permission' => 'acl.read',
+                    ],
+                    [
+                        'id' => 'm5-2',
+                        'name' => 'Permissions',
+                        'path' => '/admin/acl?tab=permissions',
+                        'icon' => 'solar:key-minimalistic-bold-duotone',
+                        'permission' => 'acl.read',
+                    ],
+                ]
             ],
         ];
 
