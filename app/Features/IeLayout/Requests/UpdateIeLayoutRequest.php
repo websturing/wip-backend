@@ -36,12 +36,12 @@ class UpdateIeLayoutRequest extends FormRequest
             'details.*.operation_name' => ['nullable', 'string', 'max:255'],
             'details.*.section' => ['required_with:details', 'string'],
             'details.*.man_power' => ['sometimes', 'numeric'],
-            'details.*.handling_position' => ['required_with:details', 'string', 'max:255'],
-            'details.*.handling_position_value' => ['sometimes', 'numeric'],
-            'details.*.length' => ['required_with:details', 'numeric'],
-            'details.*.sequence' => ['required_with:details', 'integer'],
-            'details.*.machine_type' => ['required_with:details', 'string', 'max:255'],
-            'details.*.machine_turn' => ['required_with:details', 'numeric'],
+            'details.*.handling_position' => ['nullable', 'string', 'max:255'],
+            'details.*.handling_position_value' => ['nullable', 'numeric'],
+            'details.*.length' => ['nullable', 'numeric'],
+            'details.*.sequence' => ['nullable', 'integer'],
+            'details.*.machine_type' => ['nullable', 'string', 'max:255'],
+            'details.*.machine_turn' => ['nullable', 'numeric'],
         ];
     }
 }

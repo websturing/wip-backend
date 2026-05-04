@@ -12,6 +12,8 @@ Route::middleware('permission:acl.read')->group(function() {
 
 Route::middleware('permission:acl.update')->group(function() {
     Route::post('/roles', [RoleController::class, 'store']);
+    Route::put('/roles/{id}', [RoleController::class, 'update']);
+    Route::delete('/roles/{id}', [RoleController::class, 'destroy']);
     Route::post('/roles/{id}/permissions', [RoleController::class, 'updatePermissions']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{id}', [UserController::class, 'update']);

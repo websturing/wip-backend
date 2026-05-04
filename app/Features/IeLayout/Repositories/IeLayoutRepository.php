@@ -129,6 +129,9 @@ class IeLayoutRepository
         else $turn = $detail['machine_turn'] ?? 0;
 
         $detail['machine_turn'] = $turn;
+        $detail['machine_type'] = $machineType ?: '-';
+        $detail['handling_position'] = $detail['handling_position'] ?? 'Seated';
+        $detail['length'] = $sewLength;
 
         $stdTime = ($posHandling > 0) ? ($sewLength * $turn) + $posHandling : 0;
         $stdTime = ceil($stdTime * 100) / 100; // Round up to 2 decimals
