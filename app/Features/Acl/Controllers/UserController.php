@@ -26,6 +26,7 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role_id' => 'required|exists:roles,id',
+            'status' => 'nullable|string|in:active,inactive'
         ]);
 
         $user = User::create([
@@ -33,6 +34,7 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role_id' => $validated['role_id'],
+            'status' => $validated['status'] ?? 'active',
         ]);
 
         return response()->json([
@@ -51,12 +53,14 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
             'role_id' => 'required|exists:roles,id',
+            'status' => 'nullable|string|in:active,inactive'
         ]);
 
         $data = [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'role_id' => $validated['role_id'],
+            'status' => $validated['status'] ?? $user->status,
         ];
 
         if (!empty($validated['password'])) {

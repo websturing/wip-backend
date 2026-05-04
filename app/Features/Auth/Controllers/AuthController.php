@@ -48,6 +48,15 @@ class AuthController extends Controller
             ]);
         }
 
+        try {
+            $user->update([
+                'last_login_at' => now()
+            ]);
+        } catch (\Exception $e) {
+            // Log error but allow login to proceed
+            \Illuminate\Support\Facades\Log::error("Failed to update last_login_at: " . $e->getMessage());
+        }
+
         return response()->json([
             'token' => $user->createToken('auth_token')->plainTextToken,
             'user' => $user->load(['role.permissions'])
