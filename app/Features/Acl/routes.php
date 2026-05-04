@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Features\Acl\Controllers\RoleController;
 use App\Features\Acl\Controllers\UserController;
+use App\Features\Acl\Controllers\MenuController;
+
+Route::get('/menus', [MenuController::class, 'index']);
 
 Route::middleware('permission:acl.read')->group(function() {
     Route::get('/roles', [RoleController::class, 'index']);

@@ -18,6 +18,15 @@ class AuthController extends Controller
         $this->service = $service;
     }
 
+    public function me(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+        return response()->json($user->load(['role.permissions']));
+    }
+
     public function index()
     {
         $data = $this->service->getAll();
