@@ -25,6 +25,12 @@ class AclService
                 'production.update' => 'Refine/Edit Production Records',
                 'production.delete' => 'Remove Erroneous Entries',
             ],
+             'packing' => [
+                'packing.read' => 'View Production Dashboard & Feed',
+                'packing.create' => 'Log Daily Production Output',
+                'packing.update' => 'Refine/Edit Production Records',
+                'packing.delete' => 'Remove Erroneous Entries',
+            ],
             'Master Data' => [
                 'reference.read' => 'View Master References (Lots, Buyers)',
                 'reference.create' => 'Import/Add New Garment References',

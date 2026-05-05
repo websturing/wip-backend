@@ -51,7 +51,7 @@ class MenuController extends Controller
                 'id' => 'm3',
                 'name' => 'Production',
                 'path' => '/admin/production-group',
-                'icon' => 'solar:settings-linear',
+                'icon' => 'solar:documents-broken',
                 'order' => 3,
                 'permission' => 'production.read',
                 'children' => [
@@ -69,6 +69,13 @@ class MenuController extends Controller
                         'icon' => 'solar:tablet-linear',
                         'permission' => 'production.read',
                     ],
+                    [
+                        'id' => 'm3-2',
+                        'name' => 'productivity',
+                        'path' => '/admin/productivity',
+                        'icon' => 'solar:pie-chart-2-broken',
+                        'permission' => 'production.read',
+                    ],
                 ]
             ],
             [
@@ -78,6 +85,40 @@ class MenuController extends Controller
                 'icon' => 'solar:layers-linear',
                 'order' => 4,
                 'permission' => 'ie_layout.read',
+            ],
+             [
+                'id' => 'm4-1',
+                'name' => 'Report',
+                'path' => '/admin/report',
+                'icon' => 'iconoir:git-compare',
+                'order' => 5,
+                'permission' => 'ie_layout.read',
+                'children' => [
+                    [
+                        'id' => 'm3-1',
+                        'name' => 'Completion',
+                        'path' => '/admin/production',
+                        'icon' => 'solar:pie-chart-line-duotone',
+                        'permission' => 'production.read',
+                    ],
+                ]
+            ],
+            [
+                'id' => 'm4-2',
+                'name' => 'Packing',
+                'path' => '/admin/packing',
+                'icon' => 'mynaui:package',
+                'order' => 5,
+                'permission' => 'packing.read',
+                'children' => [
+                    [
+                        'id' => 'm4-2-1',
+                        'name' => 'Output',
+                        'path' => '/admin/packing',
+                        'icon' => 'boxicons:arrow-in-down-circle-half',
+                        'permission' => 'production.read',
+                    ],
+                ]
             ],
             [
                 'id' => 'm5',
