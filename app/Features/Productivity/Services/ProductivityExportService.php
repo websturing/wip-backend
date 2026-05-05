@@ -47,10 +47,10 @@ class ProductivityExportService
     private function generateFile($productivities, $fileName)
     {
         $allLineIds = $productivities->pluck('line_id')->unique();
-        $dates = $productivities->pluck('date')->unique();
+        $maxDate = $productivities->max('date');
 
         $productionData = Production::whereIn('line_id', $allLineIds)
-            ->whereIn('production_date', $dates)
+            ->whereDate('production_date', '<=', $maxDate)
             ->with(['items.details'])
             ->get();
 
@@ -108,11 +108,15 @@ class ProductivityExportService
                     $wh = (float)($firstLot->pivot->working_hour ?? $productivity->working_hour ?? 8);
                     $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
                     
-                    // NEW: Use MAX output for combined lots
+                    // NEW: Use MAX output for combined lots (Daily only for grand totals)
+                    $dailyItemsLoop = $productionData->filter(fn($p) => 
+                        $p->line_id === $productivity->line_id && 
+                        $p->production_date->format('Y-m-d') === $productivity->date->format('Y-m-d')
+                    )->flatMap->items;
+
                     $lotOutputs = [];
                     foreach ($lotGroup as $l) {
-                        $lotOutputs[] = $productionData->where('line_id', $productivity->line_id)->flatMap->items
-                            ->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+                        $lotOutputs[] = $dailyItemsLoop->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
                             ->flatMap->details->sum('qty_output');
                     }
                     $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
@@ -127,10 +131,10 @@ class ProductivityExportService
                     $allTotals['output'] += $output;
 
                     $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
-                    $row += 9; // Increased for extra info
+                    $row += 9; // Reverted to 9 after removing Offline Output
                 }
             }
-            $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $dates->first());
+            $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $productivities->pluck('date')->first());
         }
 
         $writer = new Xlsx($spreadsheet);
@@ -184,7 +188,6 @@ class ProductivityExportService
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ];
 
-        // --- ROW 1 (Header: Line & Target Output) ---
         $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); 
         $sheet->setCellValue("{$c1}{$row}", $productivity->line->name);
         $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
@@ -262,6 +265,7 @@ class ProductivityExportService
         
         $orderQty = collect($lotGroup)->sum(fn($l) => $cuttingCache[$l->lot_code] ?? 0);
         $sheet->setCellValue("{$c7}{$row}", $orderQty);
+        $sheet->getStyle("{$c7}{$row}")->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         
         $sheet->setCellValue("{$c6}" . ($row + 1), "Daily Target");
@@ -269,58 +273,64 @@ class ProductivityExportService
         $sheet->getStyle("{$c6}" . ($row + 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
         $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
-        $sheet->setCellValue("{$c7}" . ($row + 1), number_format($target, 0, ',', '.'));
+        $sheet->setCellValue("{$c7}" . ($row + 1), $target);
+        $sheet->getStyle("{$c7}" . ($row + 1))->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}" . ($row + 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 2), "Prod Output");
+        $sheet->setCellValue("{$c6}" . ($row + 2), "Daily Output");
         $sheet->getStyle("{$c6}" . ($row + 2))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 2))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
-        $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
+        $productivityDate = $productivity->date->format('Y-m-d');
+        $lineProduction = $productionData->where('line_id', $productivity->line_id);
         
-        // NEW: Max Output logic for Excel
-        $lotOutputs = [];
+        // Daily Output calculation
+        $dailyItems = $lineProduction->filter(fn($p) => $p->production_date->format('Y-m-d') === $productivityDate)->flatMap->items;
+        $dailyLotOutputs = [];
         foreach ($lotGroup as $l) {
-            $lotOutputs[] = $lpItems->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+            $dailyLotOutputs[] = $dailyItems->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
                 ->flatMap->details->sum('qty_output');
         }
-        $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
+        $dailyOutput = !empty($dailyLotOutputs) ? max($dailyLotOutputs) : 0;
 
-        // NEW: Offline Output logic for Excel
-        $offlineOutputs = [];
+        // Total Output (Archived) calculation
+        $totalItems = $lineProduction->filter(fn($p) => $p->production_date->format('Y-m-d') <= $productivityDate)->flatMap->items;
+        $totalLotOutputs = [];
         foreach ($lotGroup as $l) {
-            $offlineOutputs[] = $lpItems->filter(function($i) use ($l) {
-                return (string)$i->lot_id === (string)$l->id && strtoupper($i->section ?? '') === 'OFFLINE';
-            })->flatMap->details->sum('qty_output');
+            $totalLotOutputs[] = $totalItems->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+                ->flatMap->details->sum('qty_output');
         }
-        $offlineOutput = !empty($offlineOutputs) ? max($offlineOutputs) : 0;
+        $totalOutput = !empty($totalLotOutputs) ? max($totalLotOutputs) : 0;
 
-        $sheet->setCellValue("{$c7}" . ($row + 2), number_format($output, 0, ',', '.'));
+        $sheet->setCellValue("{$c7}" . ($row + 2), $dailyOutput);
+        $sheet->getStyle("{$c7}" . ($row + 2))->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}" . ($row + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 3), "Offline Output");
+        $sheet->setCellValue("{$c6}" . ($row + 3), "Archived");
         $sheet->getStyle("{$c6}" . ($row + 3))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 3))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->setCellValue("{$c7}" . ($row + 3), number_format($offlineOutput, 0, ',', '.'));
-        $sheet->getStyle("{$c7}" . ($row + 3))->getFont()->getColor()->setRGB('FF8C00');
+        $sheet->setCellValue("{$c7}" . ($row + 3), $totalOutput);
+        $sheet->getStyle("{$c7}" . ($row + 3))->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}" . ($row + 3))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         $sheet->setCellValue("{$c6}" . ($row + 4), "% Achieved");
         $sheet->getStyle("{$c6}" . ($row + 4))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 4))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
-        $achieved = $target > 0 ? ($output / $target) : 0;
+        $achieved = $target > 0 ? ($dailyOutput / $target) : 0;
         $cellAch = $c7 . ($row + 4);
-        $sheet->setCellValue($cellAch, number_format($achieved * 100, 2, ',', '.') . "%");
+        $sheet->setCellValue($cellAch, $achieved);
+        $sheet->getStyle($cellAch)->getNumberFormat()->setFormatCode('0.00%');
         $sheet->getStyle($cellAch)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
         $sheet->getStyle($cellAch)->getFont()->setBold(true);
         $sheet->getStyle($cellAch)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 5), "Bal. Qty");
+        $sheet->setCellValue("{$c6}" . ($row + 5), "Balance");
         $sheet->getStyle("{$c6}" . ($row + 5))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 5))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        // Formula: Output - Target (Minus means shortage)
-        $sheet->setCellValue("{$c7}" . ($row + 5), number_format($output - $target, 0, ',', '.'));
+        // Formula: Order Qty - Total Output
+        $sheet->setCellValue("{$c7}" . ($row + 5), $orderQty - $totalOutput);
+        $sheet->getStyle("{$c7}" . ($row + 5))->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}" . ($row + 5))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         // EXTRA DECORATION: Orange bottom for Section Label
@@ -458,9 +468,11 @@ class ProductivityExportService
                     $sheet->setCellValue('G' . $row, $output);
                     $sheet->setCellValue('H' . $row, $lastStep);
                     $sheet->setCellValue('I' . $row, $output - $tgtAct);
-                    $sheet->setCellValue('J' . $row, $tgtAct > 0 ? round(($output / $tgtAct) * 100, 2) . '%' : '0%');
+                    $sheet->setCellValue('J' . $row, $tgtAct > 0 ? ($output / $tgtAct) : 0);
+                    $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('0.00%');
                     $sheet->setCellValue('K' . $row, $output - $tgtPln);
-                    $sheet->setCellValue('L' . $row, $tgtPln > 0 ? round(($output / $tgtPln) * 100, 2) . '%' : '0%');
+                    $sheet->setCellValue('L' . $row, $tgtPln > 0 ? ($output / $tgtPln) : 0);
+                    $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('0.00%');
                     $sheet->setCellValue('M' . $row, ''); // Remarks
 
                     $sheet->getStyle('A' . $row . ':M' . $row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
@@ -485,9 +497,11 @@ class ProductivityExportService
             
             // Subtotal Diffs
             $sheet->setCellValue('I' . $row, $groupOut - $groupTAct);
-            $sheet->setCellValue('J' . $row, $groupTAct > 0 ? round(($groupOut / $groupTAct) * 100, 2) . '%' : '0%');
+            $sheet->setCellValue('J' . $row, $groupTAct > 0 ? ($groupOut / $groupTAct) : 0);
+            $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('0.00%');
             $sheet->setCellValue('K' . $row, $groupOut - $groupTPln);
-            $sheet->setCellValue('L' . $row, $groupTPln > 0 ? round(($groupOut / $groupTPln) * 100, 2) . '%' : '0%');
+            $sheet->setCellValue('L' . $row, $groupTPln > 0 ? ($groupOut / $groupTPln) : 0);
+            $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('0.00%');
 
             $range = 'A' . $row . ':M' . $row;
             $sheet->getStyle($range)->getFont()->setBold(true);
@@ -526,9 +540,11 @@ class ProductivityExportService
             
             // Diffs
             $sheet->setCellValue('I' . $row, $gt['data']['out'] - $gt['data']['tgtAct']);
-            $sheet->setCellValue('J' . $row, $gt['data']['tgtAct'] > 0 ? round(($gt['data']['out'] / $gt['data']['tgtAct']) * 100, 2) . '%' : '0%');
+            $sheet->setCellValue('J' . $row, $gt['data']['tgtAct'] > 0 ? ($gt['data']['out'] / $gt['data']['tgtAct']) : 0);
+            $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('0.00%');
             $sheet->setCellValue('K' . $row, $gt['data']['out'] - $gt['data']['tgtPln']);
-            $sheet->setCellValue('L' . $row, $gt['data']['tgtPln'] > 0 ? round(($gt['data']['out'] / $gt['data']['tgtPln']) * 100, 2) . '%' : '0%');
+            $sheet->setCellValue('L' . $row, $gt['data']['tgtPln'] > 0 ? ($gt['data']['out'] / $gt['data']['tgtPln']) : 0);
+            $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('0.00%');
 
             $range = 'A' . $row . ':M' . $row;
             $sheet->getStyle($range)->getFont()->setBold(true)->setSize(11);
@@ -637,9 +653,9 @@ class ProductivityExportService
         // Metrics rows
         $metrics = [
             ['label' => 'Sewer/Helper', 'val' => $totals['sewers'] + $totals['manpower']],
-            ['label' => 'Total Hours', 'val' => number_format($totals['hours'], 0, ',', '.')],
-            ['label' => 'Total Daily Target', 'val' => number_format($totals['target'], 0, ',', '.')],
-            ['label' => 'Total Production Output', 'val' => number_format($totals['output'], 0, ',', '.')],
+            ['label' => 'Total Hours', 'val' => $totals['hours']],
+            ['label' => 'Total Daily Target', 'val' => $totals['target']],
+            ['label' => 'Total Production Output', 'val' => $totals['output']],
         ];
 
         foreach ($metrics as $m) {
@@ -650,9 +666,11 @@ class ProductivityExportService
             $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
             $sheet->setCellValue("{$c3}{$row}", $m['val']);
             $sheet->getStyle("{$c3}{$row}")->applyFromArray($dataStyle);
+            $sheet->getStyle("{$c3}{$row}")->getNumberFormat()->setFormatCode('#,##0');
 
             $sheet->setCellValue("{$c7}{$row}", $m['val']);
             $sheet->getStyle("{$c7}{$row}")->applyFromArray($dataStyle);
+            $sheet->getStyle("{$c7}{$row}")->getNumberFormat()->setFormatCode('#,##0');
             $row++;
         }
 
@@ -662,15 +680,16 @@ class ProductivityExportService
         $sheet->getStyle("{$c1}{$row}")->applyFromArray($labelStyle);
 
         $ach = $totals['target'] > 0 ? ($totals['output'] / $totals['target']) : 0;
-        $achStr = number_format($ach * 100, 2, ',', '.') . "%";
 
         $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
-        $sheet->setCellValue("{$c3}{$row}", $achStr);
+        $sheet->setCellValue("{$c3}{$row}", $ach);
         $sheet->getStyle("{$c3}{$row}")->applyFromArray($dataStyle);
+        $sheet->getStyle("{$c3}{$row}")->getNumberFormat()->setFormatCode('0.00%');
         $sheet->getStyle("{$c3}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
 
-        $sheet->setCellValue("{$c7}{$row}", $achStr);
+        $sheet->setCellValue("{$c7}{$row}", $ach);
         $sheet->getStyle("{$c7}{$row}")->applyFromArray($dataStyle);
+        $sheet->getStyle("{$c7}{$row}")->getNumberFormat()->setFormatCode('0.00%');
         $row++;
 
         // Footer Special blocks
@@ -695,11 +714,12 @@ class ProductivityExportService
         $sheet->getStyle("{$c3}{$row}")->getFont()->getColor()->setRGB('FF0000');
         $sheet->getStyle("{$c3}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
 
-        $sheet->setCellValue("{$c5}{$row}", $achStr);
+        $sheet->setCellValue("{$c5}{$row}", $ach);
         $sheet->getStyle("{$c5}{$row}")->getFont()->setBold(true)->setItalic(true);
         $sheet->getStyle("{$c5}{$row}")->getFont()->getColor()->setRGB('FF0000');
         $sheet->getStyle("{$c5}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
         $sheet->getStyle("{$c5}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c5}{$row}")->getNumberFormat()->setFormatCode('0.00%');
     }
 
     private function getLineCategory($lineName) {

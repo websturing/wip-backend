@@ -19,6 +19,10 @@ class Production extends Model
         'remarks'
     ];
 
+    protected $casts = [
+        'production_date' => 'date',
+    ];
+
     public function line()
     {
         return $this->belongsTo(Line::class);
