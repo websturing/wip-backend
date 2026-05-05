@@ -31,6 +31,11 @@ class ProductivityExportService
         }
 
         $productivities = $query->get();
+
+        // Natural Sort by Line Name
+        $productivities = $productivities->sort(function($a, $b) {
+            return strnatcasecmp($a->line->name ?? '', $b->line->name ?? '');
+        });
         
         if ($type === 'sewing_output') {
             return $this->generateSewingOutputFile($productivities, 'Sewing_Output_' . $date, $date);
@@ -41,7 +46,6 @@ class ProductivityExportService
 
     private function generateFile($productivities, $fileName)
     {
-        // 1. Pre-fetch all necessary data to avoid N+1 in export
         $allLineIds = $productivities->pluck('line_id')->unique();
         $dates = $productivities->pluck('date')->unique();
 
@@ -50,9 +54,9 @@ class ProductivityExportService
             ->with(['items.details'])
             ->get();
 
-        // 2. Fetch Cutting Data from external API
         $uniqueLotCodes = $productivities->flatMap->lots->pluck('lot_code')->unique();
         $cuttingCache = [];
+        // ... (cutting API logic remains same)
         if ($uniqueLotCodes->isNotEmpty()) {
             $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($uniqueLotCodes) {
                 foreach ($uniqueLotCodes as $lotCode) {
@@ -77,54 +81,57 @@ class ProductivityExportService
             }
         }
 
-        // 3. Create Excel
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Productivity');
+        $spreadsheet->removeSheetByIndex(0);
 
-        $row = 1;
-        $allTotals = [
-            'sewers' => 0, 'manpower' => 0, 'hours' => 0,
-            'target' => 0, 'output' => 0, 'lines_count' => 0
-        ];
+        // Group by Line Prefix (A, B, C...)
+        $groupedBySheet = $productivities->groupBy(function($p) {
+            return substr(strtoupper($p->line->name ?? 'OTHER'), 0, 1);
+        });
 
-        foreach ($productivities as $productivity) {
-            $groupedLots = $this->groupLots($productivity->lots);
-            $allTotals['lines_count']++;
+        foreach ($groupedBySheet as $prefix => $sheetItems) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle('Group ' . $prefix);
+            
+            $row = 1;
+            $allTotals = ['sewers' => 0, 'manpower' => 0, 'hours' => 0, 'target' => 0, 'output' => 0, 'lines_count' => 0];
 
-            foreach ($groupedLots as $lotGroup) {
-                // Calculate metrics for this block to add to total
-                $firstLot = $lotGroup[0];
-                $smv = (float)($firstLot->pivot->smv ?? $productivity->smv ?? 0);
-                $mp = (float)($productivity->manpower ?? $firstLot->pivot->manpower ?? 0);
-                $mg = (float)($productivity->sewer ?? $firstLot->pivot->sewer ?? 0);
-                $wh = (float)($firstLot->pivot->working_hour ?? $productivity->working_hour ?? 8);
-                $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
-                
-                $lotIds = collect($lotGroup)->pluck('id')->toArray();
-                $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
-                $output = $lpItems->filter(function($i) use ($lotIds) {
-                    $section = strtoupper($i->section ?? 'ALL');
-                    return in_array($i->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
-                })->flatMap->details->sum('qty_output');
+            foreach ($sheetItems as $productivity) {
+                $groupedLots = $this->groupLots($productivity->lots);
+                $allTotals['lines_count']++;
 
-                // Only add MP/MG to grand totals once per line record
-                if ($lotGroup === $groupedLots[0]) {
-                    $allTotals['sewers'] += $mg;
-                    $allTotals['manpower'] += $mp;
+                foreach ($groupedLots as $lotGroup) {
+                    $firstLot = $lotGroup[0];
+                    $smv = (float)($firstLot->pivot->smv ?? $productivity->smv ?? 0);
+                    $mp = (float)($productivity->manpower ?? $firstLot->pivot->manpower ?? 0);
+                    $mg = (float)($productivity->sewer ?? $firstLot->pivot->sewer ?? 0);
+                    $wh = (float)($firstLot->pivot->working_hour ?? $productivity->working_hour ?? 8);
+                    $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
+                    
+                    // NEW: Use MAX output for combined lots
+                    $lotOutputs = [];
+                    foreach ($lotGroup as $l) {
+                        $lotOutputs[] = $productionData->where('line_id', $productivity->line_id)->flatMap->items
+                            ->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+                            ->flatMap->details->sum('qty_output');
+                    }
+                    $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
+
+                    if ($lotGroup === $groupedLots[0]) {
+                        $allTotals['sewers'] += $mg;
+                        $allTotals['manpower'] += $mp;
+                    }
+                    
+                    $allTotals['hours'] += (($mg + $mp) * $wh);
+                    $allTotals['target'] += $target;
+                    $allTotals['output'] += $output;
+
+                    $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
+                    $row += 9; // Increased for extra info
                 }
-                
-                $allTotals['hours'] += (($mg + $mp) * $wh);
-                $allTotals['target'] += $target;
-                $allTotals['output'] += $output;
-
-                $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
-                $row += 8;
             }
+            $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $dates->first());
         }
-
-        // 4. Draw Grand Total Accumulation
-        $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $dates->first());
 
         $writer = new Xlsx($spreadsheet);
         $finalName = $fileName . '.xlsx';
@@ -270,41 +277,61 @@ class ProductivityExportService
         $sheet->getStyle("{$c6}" . ($row + 2))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
         $lpItems = $productionData->where('line_id', $productivity->line_id)->flatMap->items;
-        $output = $lpItems->filter(function($i) use ($lotIds) {
-            $section = strtoupper($i->section ?? 'ALL');
-            return in_array($i->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
-        })->flatMap->details->sum('qty_output');
+        
+        // NEW: Max Output logic for Excel
+        $lotOutputs = [];
+        foreach ($lotGroup as $l) {
+            $lotOutputs[] = $lpItems->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+                ->flatMap->details->sum('qty_output');
+        }
+        $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
+
+        // NEW: Offline Output logic for Excel
+        $offlineOutputs = [];
+        foreach ($lotGroup as $l) {
+            $offlineOutputs[] = $lpItems->filter(function($i) use ($l) {
+                return (string)$i->lot_id === (string)$l->id && strtoupper($i->section ?? '') === 'OFFLINE';
+            })->flatMap->details->sum('qty_output');
+        }
+        $offlineOutput = !empty($offlineOutputs) ? max($offlineOutputs) : 0;
 
         $sheet->setCellValue("{$c7}" . ($row + 2), number_format($output, 0, ',', '.'));
         $sheet->getStyle("{$c7}" . ($row + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 3), "% Achieved");
+        $sheet->setCellValue("{$c6}" . ($row + 3), "Offline Output");
         $sheet->getStyle("{$c6}" . ($row + 3))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 3))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->setCellValue("{$c7}" . ($row + 3), number_format($offlineOutput, 0, ',', '.'));
+        $sheet->getStyle("{$c7}" . ($row + 3))->getFont()->getColor()->setRGB('FF8C00');
+        $sheet->getStyle("{$c7}" . ($row + 3))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        $sheet->setCellValue("{$c6}" . ($row + 4), "% Achieved");
+        $sheet->getStyle("{$c6}" . ($row + 4))->applyFromArray($labelStyle);
+        $sheet->getStyle("{$c6}" . ($row + 4))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
         $achieved = $target > 0 ? ($output / $target) : 0;
-        $cellAch = $c7 . ($row + 3);
+        $cellAch = $c7 . ($row + 4);
         $sheet->setCellValue($cellAch, number_format($achieved * 100, 2, ',', '.') . "%");
         $sheet->getStyle($cellAch)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
         $sheet->getStyle($cellAch)->getFont()->setBold(true);
         $sheet->getStyle($cellAch)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 4), "Bal. Qty");
-        $sheet->getStyle("{$c6}" . ($row + 4))->applyFromArray($labelStyle);
-        $sheet->getStyle("{$c6}" . ($row + 4))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->setCellValue("{$c6}" . ($row + 5), "Bal. Qty");
+        $sheet->getStyle("{$c6}" . ($row + 5))->applyFromArray($labelStyle);
+        $sheet->getStyle("{$c6}" . ($row + 5))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         // Formula: Output - Target (Minus means shortage)
-        $sheet->setCellValue("{$c7}" . ($row + 4), number_format($output - $target, 0, ',', '.'));
-        $sheet->getStyle("{$c7}" . ($row + 4))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->setCellValue("{$c7}" . ($row + 5), number_format($output - $target, 0, ',', '.'));
+        $sheet->getStyle("{$c7}" . ($row + 5))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         // EXTRA DECORATION: Orange bottom for Section Label
-        $sheet->mergeCells("{$c5}" . ($row+6) . ":{$c5}" . ($row+6));
+        $sheet->mergeCells("{$c5}" . ($row+7) . ":{$c5}" . ($row+7));
         $section = strtoupper($firstLot->pivot->section ?? 'ALL');
-        $sheet->setCellValue("{$c5}" . ($row+6), $section);
-        $sheet->getStyle("{$c5}" . ($row+6))->applyFromArray($headerStyle);
-        $sheet->getStyle("{$c5}" . ($row+6))->getFill()->getStartColor()->setRGB('FFC000');
+        $sheet->setCellValue("{$c5}" . ($row+7), $section);
+        $sheet->getStyle("{$c5}" . ($row+7))->applyFromArray($headerStyle);
+        $sheet->getStyle("{$c5}" . ($row+7))->getFill()->getStartColor()->setRGB('FFC000');
 
         // Row height adjustment
-        for ($i = 0; $i <= 6; $i++) {
+        for ($i = 0; $i <= 7; $i++) {
             $sheet->getRowDimension($row + $i)->setRowHeight(25);
         }
 
@@ -408,11 +435,15 @@ class ProductivityExportService
                     $tgtAct = $smv > 0 ? floor(($mpAct * $wh * 60) / $smv) : 0;
 
                     $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
-                    $lotItems = $lpItems->filter(function($pi) use ($lotIds) {
-                        $section = strtoupper($pi->section ?? 'ALL');
-                        return in_array($pi->lot_id, $lotIds) && ($section === 'INLINE' || $section === 'ALL');
-                    });
-                    $output = $lotItems->flatMap->details->sum('qty_output');
+                    
+                    // NEW: Max Output for Sewing Summary
+                    $lotOutputs = [];
+                    foreach ($lotGroup as $l) {
+                        $lotOutputs[] = $lpItems->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+                            ->flatMap->details->sum('qty_output');
+                    }
+                    $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
+                    
                     $lastStep = collect($lotGroup)->max(fn($l) => $l->pivot->last_step ?? 0);
 
                     $section = strtoupper($firstLot->pivot->section ?? 'ALL');
