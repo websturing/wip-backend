@@ -97,7 +97,7 @@ class MenuController extends Controller
                     [
                         'id' => 'm3-1',
                         'name' => 'Completion',
-                        'path' => '/admin/production',
+                        'path' => '/admin/report/balance-size',
                         'icon' => 'solar:pie-chart-line-duotone',
                         'permission' => 'production.read',
                     ],
