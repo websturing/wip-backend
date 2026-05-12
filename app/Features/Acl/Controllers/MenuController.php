@@ -85,6 +85,22 @@ class MenuController extends Controller
                 'icon' => 'solar:layers-linear',
                 'order' => 4,
                 'permission' => 'ie_layout.read',
+                'children' => [
+                    [
+                        'id' => 'm4-1',
+                        'name' => 'Time Study',
+                        'path' => '/admin/ielayout',
+                        'icon' => 'solar:map-point-linear',
+                        'permission' => 'production.read',
+                    ],
+                    [
+                        'id' => 'm4-2',
+                        'name' => 'Operation List',
+                        'path' => '/admin/operations',
+                        'icon' => 'solar:list-linear',
+                        'permission' => 'production.read',
+                    ],
+                ]
             ],
              [
                 'id' => 'm4-1',
