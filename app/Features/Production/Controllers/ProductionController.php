@@ -285,7 +285,9 @@ class ProductionController extends Controller
                 'productions.production_date',
                 'lines.name as line_name',
                 'production_item_details.qty_input',
-                'production_item_details.qty_output'
+                'production_item_details.qty_output',
+                'productions.remarks as production_remarks',
+                'production_items.remarks as item_remarks'
             )
             ->orderBy('productions.production_date', 'DESC')
             ->get();
