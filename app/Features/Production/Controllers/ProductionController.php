@@ -111,7 +111,7 @@ class ProductionController extends Controller
         $validated = $request->validate([
             'lot_id' => 'required|exists:lots,id',
             'color' => 'required|string',
-            'exclude_production_id' => 'nullable|integer',
+            'exclude_production_id' => 'nullable|string',
         ]);
 
         $query = \App\Features\Production\Models\ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
