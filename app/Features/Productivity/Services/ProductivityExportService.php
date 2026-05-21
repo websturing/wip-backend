@@ -69,13 +69,15 @@ class ProductivityExportService
                     $resData = $response->json();
                     if (($resData['status'] ?? 0) === 200) {
                         $target = $resData['data'] ?? [];
-                        $totalCut = (int)($target['grand_total']['cut_qty'] ?? 0);
-                        if ($totalCut === 0 && isset($target['summary_by_color'])) {
-                            foreach ($target['summary_by_color'] as $color) {
-                                $totalCut += (int)($color['total_qty'] ?? $color['qty'] ?? $color['total_cut'] ?? 0);
-                            }
+                        
+                        // Use body_only order_qty if available, otherwise fallback
+                        if (isset($target['grand_total']['body_only']['order_qty'])) {
+                            $orderQty = (int)$target['grand_total']['body_only']['order_qty'];
+                        } else {
+                            $orderQty = (int)($target['grand_total']['order_qty'] ?? $target['grand_total']['cut_qty'] ?? 0);
                         }
-                        $cuttingCache[$lotCode] = $totalCut;
+                        
+                        $cuttingCache[$lotCode] = $orderQty;
                     }
                 }
             }
@@ -109,17 +111,19 @@ class ProductivityExportService
                     $target = $smv > 0 ? floor(($mp + $mg) * $wh * 60 / $smv) : 0;
                     
                     // NEW: Use MAX output for combined lots (Daily only for grand totals)
-                    $dailyItemsLoop = $productionData->filter(fn($p) => 
+                    // NEW: Use SUM output for combined lots
+                    $pData = $productionData->filter(fn($p) => 
                         $p->line_id === $productivity->line_id && 
                         $p->production_date->format('Y-m-d') === $productivity->date->format('Y-m-d')
-                    )->flatMap->items;
-
-                    $lotOutputs = [];
-                    foreach ($lotGroup as $l) {
-                        $lotOutputs[] = $dailyItemsLoop->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
+                    );
+                    $section = strtoupper($firstLot->pivot->section ?? 'ALL');
+                    $lotOutputs = collect($lotGroup)->map(function ($l) use ($pData, $section) {
+                        return collect($pData)
+                            ->flatMap->items
+                            ->filter(fn($pi) => (string)$pi->lot_id === (string)$l->id && strtoupper($pi->section ?? 'ALL') === $section)
                             ->flatMap->details->sum('qty_output');
-                    }
-                    $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
+                    })->toArray();
+                    $output = !empty($lotOutputs) ? array_sum($lotOutputs) : 0;
 
                     if ($lotGroup === $groupedLots[0]) {
                         $allTotals['sewers'] += $mg;
@@ -446,13 +450,13 @@ class ProductivityExportService
 
                     $lpItems = $productionData->where('line_id', $p->line_id)->flatMap->items;
                     
-                    // NEW: Max Output for Sewing Summary
+                    // Use SUM Output for Sewing Summary
                     $lotOutputs = [];
                     foreach ($lotGroup as $l) {
                         $lotOutputs[] = $lpItems->filter(fn($i) => (string)$i->lot_id === (string)$l->id)
                             ->flatMap->details->sum('qty_output');
                     }
-                    $output = !empty($lotOutputs) ? max($lotOutputs) : 0;
+                    $output = !empty($lotOutputs) ? array_sum($lotOutputs) : 0;
                     
                     $lastStep = collect($lotGroup)->max(fn($l) => $l->pivot->last_step ?? 0);
 
@@ -570,7 +574,7 @@ class ProductivityExportService
     {
         $groups = [];
         foreach ($lots as $l) {
-            $configKey = "{$l->pivot->smv}-{$l->pivot->manpower}-{$l->pivot->working_hour}-{$l->pivot->section}";
+            $configKey = $l->pivot->merge_id ?: "{$l->pivot->smv}-{$l->pivot->manpower}-{$l->pivot->working_hour}-{$l->pivot->section}";
             if (!isset($groups[$configKey])) {
                 $groups[$configKey] = [];
             }

@@ -96,10 +96,16 @@ class WipReportController extends Controller
                     $resData = $response->json();
                     if (($resData['status'] ?? 0) === 200) {
                         $target = $resData['data'] ?? [];
-                        $totalCut = (int)($target['grand_total']['cut_qty'] ?? 0);
-                        if ($totalCut === 0 && isset($target['summary_by_color'])) {
-                            foreach ($target['summary_by_color'] as $color) {
-                                $totalCut += (int)($color['total_qty'] ?? $color['qty'] ?? $color['total_cut'] ?? 0);
+                        
+                        // Use body_only cut_qty if available, otherwise fallback
+                        if (isset($target['grand_total']['body_only']['cut_qty'])) {
+                            $totalCut = (int)$target['grand_total']['body_only']['cut_qty'];
+                        } else {
+                            $totalCut = (int)($target['grand_total']['cut_qty'] ?? 0);
+                            if ($totalCut === 0 && isset($target['summary_by_color'])) {
+                                foreach ($target['summary_by_color'] as $color) {
+                                    $totalCut += (int)($color['cut_qty'] ?? $color['total_qty'] ?? $color['qty'] ?? $color['total_cut'] ?? 0);
+                                }
                             }
                         }
                         $cuttingCache[$lotCode] = $totalCut;

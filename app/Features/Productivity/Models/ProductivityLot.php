@@ -21,7 +21,8 @@ class ProductivityLot extends Pivot
         'plan_sewer',
         'working_hour',
         'media_id',
-        'section'
+        'section',
+        'merge_id'
     ];
 
     protected $casts = [

@@ -67,9 +67,11 @@ class ProductivityController extends Controller
 
         $productivity = $this->repository->create($validated);
         
-        $syncData = [];
+        $records = [];
         foreach ($request->lot_data as $ld) {
-            $syncData[$ld['lot_id']] = [
+            $records[] = [
+                'lot_id' => $ld['lot_id'],
+                'merge_id' => $ld['merge_id'] ?? null,
                 'smv' => $ld['smv'],
                 'last_step' => $ld['last_step'],
                 'target_plan' => $ld['target_plan'],
@@ -82,7 +84,8 @@ class ProductivityController extends Controller
                 'section' => $ld['section'] ?? 'all',
             ];
         }
-        $productivity->lots()->sync($syncData);
+        $productivity->productivityLots()->delete();
+        $productivity->productivityLots()->createMany($records);
 
         $productivity->load(['lots.glGroup.customer']);
         $productivity->lots->each(function($l) {
@@ -117,9 +120,11 @@ class ProductivityController extends Controller
         $productivity = $this->repository->update($id, $request->except('lot_data'));
 
         if ($request->has('lot_data')) {
-            $syncData = [];
+            $records = [];
             foreach ($request->lot_data as $ld) {
-                $syncData[$ld['lot_id']] = [
+                $records[] = [
+                    'lot_id' => $ld['lot_id'],
+                    'merge_id' => $ld['merge_id'] ?? null,
                     'smv' => $ld['smv'],
                     'last_step' => $ld['last_step'],
                     'target_plan' => $ld['target_plan'],
@@ -132,7 +137,8 @@ class ProductivityController extends Controller
                     'section' => $ld['section'] ?? 'all',
                 ];
             }
-            $productivity->lots()->sync($syncData);
+            $productivity->productivityLots()->delete();
+            $productivity->productivityLots()->createMany($records);
         }
 
         $productivity->load(['lots.glGroup.customer']);
