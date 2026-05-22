@@ -101,6 +101,13 @@ class MenuController extends Controller
                         'icon' => 'solar:pie-chart-line-duotone',
                         'permission' => 'production.read',
                     ],
+                    [
+                        'id' => 'm3-3',
+                        'name' => 'Productivity',
+                        'path' => '/admin/report/productivity',
+                        'icon' => 'solar:pie-chart-2-broken',
+                        'permission' => 'production.read',
+                    ],
                 ]
             ],
             [

@@ -213,4 +213,17 @@ class ProductivityController extends Controller
         $filePath = $service->exportByDate($date, $lineIds, $type);
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
+
+    public function reportData(Request $request, \App\Features\Productivity\Services\ProductivityReportService $service)
+    {
+        $date = $request->get('date', now()->toDateString());
+        $lineIds = $request->get('line_ids');
+        
+        $data = $service->getSummaryData($date, $lineIds);
+        
+        return response()->json([
+            'status' => 'success',
+            'data' => $data
+        ]);
+    }
 }
