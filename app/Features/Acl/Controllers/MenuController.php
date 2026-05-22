@@ -88,7 +88,7 @@ class MenuController extends Controller
             ],
              [
                 'id' => 'm4-1',
-                'name' => 'Report',
+                'name' => 'Sewing Report',
                 'path' => '/admin/report',
                 'icon' => 'iconoir:git-compare',
                 'order' => 5,
