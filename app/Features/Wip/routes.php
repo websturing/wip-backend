@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Features\Wip\Controllers\WipController;
 use App\Features\Wip\Controllers\WipReportController;
 
+Route::get('/pending-services', [\App\Features\Wip\Controllers\PendingWipController::class, 'index']);
 Route::get('/summary', [WipReportController::class, 'summary']);
 Route::get('/balance-summary', [WipReportController::class, 'balanceSummary']);
 Route::get('/get-colors', [WipReportController::class, 'getLotColors']);

@@ -70,10 +70,17 @@ class MenuController extends Controller
                         'permission' => 'production.read',
                     ],
                     [
-                        'id' => 'm3-2',
+                        'id' => 'm3-3',
                         'name' => 'productivity',
                         'path' => '/admin/productivity',
                         'icon' => 'solar:pie-chart-2-broken',
+                        'permission' => 'production.read',
+                    ],
+                    [
+                        'id' => 'm3-4',
+                        'name' => 'Detailed Statistics',
+                        'path' => '/admin/detailed-statistics',
+                        'icon' => 'solar:chart-square-bold-duotone',
                         'permission' => 'production.read',
                     ],
                 ]

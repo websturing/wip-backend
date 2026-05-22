@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:production.read')->group(function() {
     Route::get('/', [ProductivityController::class, 'index']);
+    Route::get('/detailed-statistics', [\App\Features\Productivity\Controllers\ProductivityStatisticsController::class, 'detailedStatistics']);
     Route::get('/export-daily', [ProductivityController::class, 'exportByDate']);
     Route::get('/report-data', [ProductivityController::class, 'reportData']);
     Route::get('/last-info/{lotId}', [ProductivityController::class, 'lastInfo']);

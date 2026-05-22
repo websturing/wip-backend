@@ -114,7 +114,7 @@ class ProductivityExportService
 
         foreach ($groupedBySheet as $prefix => $sheetItems) {
             $sheet = $spreadsheet->createSheet();
-            $sheet->setTitle('Group ' . $prefix);
+            $sheet->setTitle('Factory ' . $prefix);
             
             $row = 1;
             $allTotals = ['sewers' => 0, 'manpower' => 0, 'hours' => 0, 'working_hour_sum' => 0, 'target' => 0, 'output' => 0, 'lines_count' => 0];
@@ -511,7 +511,7 @@ class ProductivityExportService
 
             // Group Header
             $sheet->mergeCells("A{$row}:M{$row}");
-            $sheet->setCellValue("A{$row}", "GROUP " . $catName);
+            $sheet->setCellValue("A{$row}", "FACTORY " . $catName);
             $sheet->getStyle("A{$row}")->getFont()->setBold(true);
             $sheet->getStyle("A{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EFEFEF');
             $row++;
@@ -869,25 +869,7 @@ class ProductivityExportService
         $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         $row++;
         
-        $sheet->mergeCells("{$c2}{$row}:{$c3}{$row}");
-        $sheet->setCellValue("{$c2}{$row}", "WAITING CHECK");
-        $sheet->getStyle("{$c2}{$row}")->getFont()->setBold(true)->setItalic(true);
-        $sheet->getStyle("{$c2}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("{$c2}{$row}:{$c3}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->mergeCells("{$c4}{$row}:{$c5}{$row}");
-        $sheet->setCellValue("{$c4}{$row}", $allTotals['lines_count'] * 5);
-        $sheet->getStyle("{$c4}{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("{$c4}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("{$c4}{$row}:{$c5}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->setCellValue("{$c6}{$row}", "OFFLINE\nSEWER :");
-        $sheet->getStyle("{$c6}{$row}")->getFont()->setBold(true)->setItalic(true);
-        $sheet->getStyle("{$c6}{$row}")->getAlignment()->setWrapText(true)->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("{$c6}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $sheet->setCellValue("{$c7}{$row}", "10");
-        $sheet->getStyle("{$c7}{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("{$c7}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        $row++;
+
         
         $sheet->mergeCells("{$c2}{$row}:{$c5}{$row}");
         $sheet->getStyle("{$c2}{$row}:{$c5}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
