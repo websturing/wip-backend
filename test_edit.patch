@@ -1,0 +1,7 @@
+--- /var/www/html/wip/api/app/Features/Productivity/Services/ProductivityExportService.php
++++ /var/www/html/wip/api/app/Features/Productivity/Services/ProductivityExportService.php
+@@ -192,3 +192,3 @@
+ 
+-        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); 
++        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 6)); 
+         $sheet->setCellValue("{$c1}{$row}", $productivity->line->name);

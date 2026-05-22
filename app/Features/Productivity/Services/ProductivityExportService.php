@@ -32,11 +32,32 @@ class ProductivityExportService
 
         $productivities = $query->get();
 
-        // Natural Sort by Line Name
+        // Custom Sort by Line Name (DS first, then NS, then numeric)
         $productivities = $productivities->sort(function($a, $b) {
-            return strnatcasecmp($a->line->name ?? '', $b->line->name ?? '');
+            $nameA = strtoupper($a->line->name ?? '');
+            $nameB = strtoupper($b->line->name ?? '');
+            
+            $prefixA = preg_replace('/[^A-Z]/', '', explode(' ', $nameA)[0] ?? '');
+            $prefixB = preg_replace('/[^A-Z]/', '', explode(' ', $nameB)[0] ?? '');
+            
+            if ($prefixA !== $prefixB) {
+                return strcmp($prefixA, $prefixB);
+            }
+            
+            $isNsA = strpos($nameA, 'NS') !== false ? 1 : 0;
+            $isNsB = strpos($nameB, 'NS') !== false ? 1 : 0;
+            
+            if ($isNsA !== $isNsB) {
+                return $isNsA <=> $isNsB;
+            }
+            
+            preg_match('/\d+/', $nameA, $matchA);
+            preg_match('/\d+/', $nameB, $matchB);
+            $numA = isset($matchA[0]) ? (int)$matchA[0] : 0;
+            $numB = isset($matchB[0]) ? (int)$matchB[0] : 0;
+            
+            return $numA <=> $numB;
         });
-        
         if ($type === 'sewing_output') {
             return $this->generateSewingOutputFile($productivities, 'Sewing_Output_' . $date, $date);
         }
@@ -96,11 +117,29 @@ class ProductivityExportService
             $sheet->setTitle('Group ' . $prefix);
             
             $row = 1;
-            $allTotals = ['sewers' => 0, 'manpower' => 0, 'hours' => 0, 'target' => 0, 'output' => 0, 'lines_count' => 0];
+            $allTotals = ['sewers' => 0, 'manpower' => 0, 'hours' => 0, 'working_hour_sum' => 0, 'target' => 0, 'output' => 0, 'lines_count' => 0];
+            $catTotals = [];
 
             foreach ($sheetItems as $productivity) {
+                $name = strtoupper($productivity->line->name ?? '');
+                $isNs = strpos($name, 'NS') !== false;
+                preg_match('/\d+/', $name, $matches);
+                $num = isset($matches[0]) ? (int)$matches[0] : 0;
+                
+                $rangeStart = floor(($num - 1) / 8) * 8 + 1;
+                $rangeEnd = $rangeStart + 7;
+                $catKey = ($isNs ? 'NS' : 'DS') . '_' . $rangeStart;
+                
+                if (!isset($catTotals[$catKey])) {
+                    $catTotals[$catKey] = [
+                        'prefix' => $prefix, 'isNs' => $isNs, 'start' => $rangeStart, 'end' => $rangeEnd,
+                        'sewers' => 0, 'manpower' => 0, 'hours' => 0, 'working_hour_sum' => 0, 'target' => 0, 'output' => 0, 'lines_count' => 0
+                    ];
+                }
+
                 $groupedLots = $this->groupLots($productivity->lots);
                 $allTotals['lines_count']++;
+                $catTotals[$catKey]['lines_count']++;
 
                 foreach ($groupedLots as $lotGroup) {
                     $firstLot = $lotGroup[0];
@@ -128,17 +167,32 @@ class ProductivityExportService
                     if ($lotGroup === $groupedLots[0]) {
                         $allTotals['sewers'] += $mg;
                         $allTotals['manpower'] += $mp;
+                        $allTotals['working_hour_sum'] += $wh;
+                        
+                        $catTotals[$catKey]['sewers'] += $mg;
+                        $catTotals[$catKey]['manpower'] += $mp;
+                        $catTotals[$catKey]['working_hour_sum'] += $wh;
                     }
                     
                     $allTotals['hours'] += (($mg + $mp) * $wh);
                     $allTotals['target'] += $target;
                     $allTotals['output'] += $output;
+                    
+                    $catTotals[$catKey]['hours'] += (($mg + $mp) * $wh);
+                    $catTotals[$catKey]['target'] += $target;
+                    $catTotals[$catKey]['output'] += $output;
 
                     $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
                     $row += 9; // Reverted to 9 after removing Offline Output
                 }
             }
-            $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $productivities->pluck('date')->first());
+            
+            uasort($catTotals, function($a, $b) {
+                if ($a['isNs'] !== $b['isNs']) return $a['isNs'] ? 1 : -1;
+                return $a['start'] <=> $b['start'];
+            });
+
+            $this->drawGrandTotalBlock($sheet, 'B', $row, $allTotals, $catTotals, $prefix);
         }
 
         $writer = new Xlsx($spreadsheet);
@@ -192,7 +246,7 @@ class ProductivityExportService
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ];
 
-        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); 
+        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 6)); 
         $sheet->setCellValue("{$c1}{$row}", $productivity->line->name);
         $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
         $sheet->getStyle("{$c1}{$row}")->getAlignment()->setTextRotation(90);
@@ -257,7 +311,7 @@ class ProductivityExportService
         $sheet->getStyle("{$c5}" . ($row + 2))->applyFromArray($labelStyle);
 
         // Image Placeholder
-        $sheet->mergeCells("{$c5}" . ($row + 3) . ":{$c5}" . ($row + 5));
+        $sheet->mergeCells("{$c5}" . ($row + 3) . ":{$c5}" . ($row + 6));
         if ($firstLot->pivot->media && $firstLot->pivot->media->file_path) {
             $this->addDrawing($sheet, $c5, $row + 3, $firstLot->pivot->media->file_path);
         }
@@ -332,20 +386,52 @@ class ProductivityExportService
         $sheet->setCellValue("{$c6}" . ($row + 5), "Balance");
         $sheet->getStyle("{$c6}" . ($row + 5))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 5))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        // Formula: Order Qty - Total Output
-        $sheet->setCellValue("{$c7}" . ($row + 5), $orderQty - $totalOutput);
+        // Formula: Total Output - Order Qty (shows negative if lacking)
+        $sheet->setCellValue("{$c7}" . ($row + 5), $totalOutput - $orderQty);
         $sheet->getStyle("{$c7}" . ($row + 5))->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}" . ($row + 5))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
+        // Day calculation
+        $earliestDate = null;
+        foreach ($lineProduction as $p) {
+            if ($p->production_date->format('Y-m-d') <= $productivityDate) {
+                $hasLot = false;
+                foreach ($lotGroup as $l) {
+                    if ($p->items->contains('lot_id', $l->id)) {
+                        $hasLot = true;
+                        break;
+                    }
+                }
+                if ($hasLot) {
+                    $pDate = $p->production_date->format('Y-m-d');
+                    if ($earliestDate === null || $pDate < $earliestDate) {
+                        $earliestDate = $pDate;
+                    }
+                }
+            }
+        }
+        $days = $earliestDate ? \Carbon\Carbon::parse($earliestDate)->diffInDays(\Carbon\Carbon::parse($productivityDate)) + 1 : 1;
+
+        $sheet->setCellValue("{$c6}" . ($row + 6), "Day");
+        $sheet->getStyle("{$c6}" . ($row + 6))->applyFromArray($labelStyle);
+        $sheet->getStyle("{$c6}" . ($row + 6))->getFont()->getColor()->setRGB('FF0000');
+        $sheet->getStyle("{$c6}" . ($row + 6))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->setCellValue("{$c7}" . ($row + 6), $days);
+        $sheet->getStyle("{$c7}" . ($row + 6))->getFont()->getColor()->setRGB('FF0000');
+        $sheet->getStyle("{$c7}" . ($row + 6))->getFont()->setBold(true);
+        $sheet->getStyle("{$c7}" . ($row + 6))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c7}" . ($row + 6))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
         // EXTRA DECORATION: Orange bottom for Section Label
-        $sheet->mergeCells("{$c5}" . ($row+7) . ":{$c5}" . ($row+7));
+        $sheet->mergeCells("{$c5}" . ($row+8) . ":{$c5}" . ($row+8));
         $section = strtoupper($firstLot->pivot->section ?? 'ALL');
-        $sheet->setCellValue("{$c5}" . ($row+7), $section);
-        $sheet->getStyle("{$c5}" . ($row+7))->applyFromArray($headerStyle);
-        $sheet->getStyle("{$c5}" . ($row+7))->getFill()->getStartColor()->setRGB('FFC000');
+        $sheet->setCellValue("{$c5}" . ($row+8), $section);
+        $sheet->getStyle("{$c5}" . ($row+8))->applyFromArray($headerStyle);
+        $sheet->getStyle("{$c5}" . ($row+8))->getFill()->getStartColor()->setRGB('FFC000');
 
         // Row height adjustment
-        for ($i = 0; $i <= 7; $i++) {
+        for ($i = 0; $i <= 8; $i++) {
             $sheet->getRowDimension($row + $i)->setRowHeight(25);
         }
 
@@ -603,7 +689,7 @@ class ProductivityExportService
         }
     }
 
-    private function drawGrandTotalBlock($sheet, $startCol, $row, $totals, $date)
+    private function drawGrandTotalBlock($sheet, $startCol, $row, $allTotals, $catTotals, $prefix)
     {
         $c1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($startCol) - 1);
         $c2 = $startCol;
@@ -614,133 +700,197 @@ class ProductivityExportService
         $c7 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1) + 6);
 
         $headerStyle = [
-            'font' => ['bold' => true, 'size' => 12, 'italic' => true],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THICK]],
-        ];
-
-        $labelStyle = [
-            'font' => ['bold' => true, 'size' => 10],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
-        ];
-
-        $dataStyle = [
             'font' => ['bold' => true, 'size' => 12],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]],
         ];
-
-        // Header Date & Line Group
-        $sheet->mergeCells("{$c3}{$row}:{$c7}{$row}");
-        $sheet->setCellValue("{$c3}{$row}", $date ? date('j-M-y', strtotime($date)) : '-');
-        $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle);
-
-        $row++;
-        $sheet->mergeCells("{$c3}{$row}:{$c7}{$row}");
-        $sheet->setCellValue("{$c3}{$row}", "TOTAL ACCUMULATION (All Lines)");
-        $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle);
-
-        $row++;
-        // Column Headers
-        $sheet->setCellValue("{$c3}{$row}", "TOTAL / AVERAGE");
-        $sheet->getStyle("{$c3}{$row}")->getFont()->setItalic(true)->setBold(true);
-        $sheet->getStyle("{$c3}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
-
-        $sheet->setCellValue("{$c7}{$row}", "GRAND TOTAL");
-        $sheet->getStyle("{$c7}{$row}")->getFont()->setItalic(true)->setBold(true);
-        $sheet->getStyle("{$c7}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $row++;
-        // Metrics rows
-        $metrics = [
-            ['label' => 'Sewer/Helper', 'val' => $totals['sewers'] + $totals['manpower']],
-            ['label' => 'Total Hours', 'val' => $totals['hours']],
-            ['label' => 'Total Daily Target', 'val' => $totals['target']],
-            ['label' => 'Total Production Output', 'val' => $totals['output']],
-        ];
-
-        foreach ($metrics as $m) {
+        
+        foreach ($catTotals as $cat) {
+            $sheet->mergeCells("{$c1}{$row}:{$c6}{$row}");
+            $sheet->setCellValue("{$c1}{$row}", "SEWING ({$prefix}{$cat['start']} - {$prefix}{$cat['end']})");
+            $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
+            $row++;
+            
+            $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
+            $shiftName = $cat['isNs'] ? 'NIGHT' : 'DAY';
+            $shiftCode = $cat['isNs'] ? 'NS' : 'DS';
+            $sheet->setCellValue("{$c3}{$row}", "{$shiftName} ({$cat['start']}-{$cat['end']})");
+            $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle)->getFont()->setItalic(true);
+            
+            $sheet->setCellValue("{$c6}{$row}", "TOTAL");
+            $sheet->getStyle("{$c6}{$row}")->applyFromArray($headerStyle)->getFont()->setItalic(true);
+            
+            $sheet->setCellValue("{$c7}{$row}", "SPV {$cat['start']} - {$cat['end']} {$shiftCode}");
+            $sheet->getStyle("{$c7}{$row}")->applyFromArray($headerStyle);
+            $sheet->getStyle("{$c7}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFC000');
+            $row++;
+            
+            $avgHours = $cat['lines_count'] > 0 ? $cat['working_hour_sum'] / $cat['lines_count'] : 0;
+            $metrics = [
+                ['label' => 'Sewer/Helper', 'val' => $cat['sewers'] + $cat['manpower'], 'format' => '#,##0.0'],
+                ['label' => 'Total Hours', 'val' => $avgHours, 'format' => '#,##0.0'],
+                ['label' => 'Total Daily Target', 'val' => $cat['target'], 'format' => '#,##0.0'],
+                ['label' => 'Total Production Output', 'val' => $cat['output'], 'format' => '#,##0.0'],
+            ];
+            
+            foreach ($metrics as $m) {
+                $sheet->mergeCells("{$c1}{$row}:{$c2}{$row}");
+                $sheet->setCellValue("{$c1}{$row}", $m['label']);
+                $sheet->getStyle("{$c1}{$row}:{$c2}{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("{$c1}{$row}:{$c2}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                
+                $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
+                $sheet->setCellValue("{$c3}{$row}", $m['val']);
+                $sheet->getStyle("{$c3}{$row}:{$c4}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("{$c3}{$row}:{$c4}{$row}")->getNumberFormat()->setFormatCode($m['format']);
+                $sheet->getStyle("{$c3}{$row}:{$c4}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                
+                $sheet->setCellValue("{$c6}{$row}", $m['val']);
+                $sheet->getStyle("{$c6}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("{$c6}{$row}")->getNumberFormat()->setFormatCode($m['format']);
+                $sheet->getStyle("{$c6}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                $sheet->getStyle("{$c6}{$row}")->getFont()->setBold(true);
+                $row++;
+            }
+            
+            $ach = $cat['target'] > 0 ? ($cat['output'] / $cat['target']) : 0;
             $sheet->mergeCells("{$c1}{$row}:{$c2}{$row}");
-            $sheet->setCellValue("{$c1}{$row}", $m['label']);
-            $sheet->getStyle("{$c1}{$row}")->applyFromArray($labelStyle);
-
-            $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
-            $sheet->setCellValue("{$c3}{$row}", $m['val']);
-            $sheet->getStyle("{$c3}{$row}")->applyFromArray($dataStyle);
-            $sheet->getStyle("{$c3}{$row}")->getNumberFormat()->setFormatCode('#,##0');
-
-            $sheet->setCellValue("{$c7}{$row}", $m['val']);
-            $sheet->getStyle("{$c7}{$row}")->applyFromArray($dataStyle);
-            $sheet->getStyle("{$c7}{$row}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->setCellValue("{$c1}{$row}", "% of Achieved");
+            
+            $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
+            $sheet->setCellValue("{$c3}{$row}", $ach);
+            
+            $sheet->setCellValue("{$c6}{$row}", $ach);
+            
+            $sheet->setCellValue("{$c7}{$row}", "");
+            
+            $range = "{$c1}{$row}:{$c7}{$row}";
+            $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            $sheet->getStyle($range)->getFont()->setBold(true);
+            $sheet->getStyle("{$c3}{$row}")->getNumberFormat()->setFormatCode('0.00%');
+            $sheet->getStyle("{$c6}{$row}")->getNumberFormat()->setFormatCode('0.00%');
+            $sheet->getStyle("{$c1}{$row}:{$c4}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
+            $sheet->getStyle("{$c6}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
             $row++;
         }
-
-        // % Achieved row
+        
+        $sheet->mergeCells("{$c1}{$row}:{$c6}{$row}");
+        $sheet->setCellValue("{$c1}{$row}", "SEWING ALL SHIFT");
+        $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
+        $row++;
+        
+        $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
+        $sheet->setCellValue("{$c3}{$row}", "DAY - NIGHT");
+        $sheet->getStyle("{$c3}{$row}")->applyFromArray($headerStyle)->getFont()->setItalic(true);
+        
+        $sheet->setCellValue("{$c6}{$row}", "TOTAL");
+        $sheet->getStyle("{$c6}{$row}")->applyFromArray($headerStyle)->getFont()->setItalic(true);
+        $row++;
+        
+        $avgHoursAll = $allTotals['lines_count'] > 0 ? $allTotals['working_hour_sum'] / $allTotals['lines_count'] : 0;
+        $metricsAll = [
+            ['label' => 'Sewer/Helper', 'val' => $allTotals['sewers'] + $allTotals['manpower'], 'format' => '#,##0.0'],
+            ['label' => 'Total Hours', 'val' => $avgHoursAll, 'format' => '#,##0.0'],
+            ['label' => 'Total Daily Target', 'val' => $allTotals['target'], 'format' => '#,##0.0'],
+            ['label' => 'Total Production Output', 'val' => $allTotals['output'], 'format' => '#,##0.0'],
+        ];
+        
+        foreach ($metricsAll as $m) {
+            $sheet->mergeCells("{$c1}{$row}:{$c2}{$row}");
+            $sheet->setCellValue("{$c1}{$row}", $m['label']);
+            $sheet->getStyle("{$c1}{$row}:{$c2}{$row}")->getFont()->setBold(true);
+            $sheet->getStyle("{$c1}{$row}:{$c2}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            
+            $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
+            $sheet->setCellValue("{$c3}{$row}", $m['val']);
+            $sheet->getStyle("{$c3}{$row}:{$c4}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$c3}{$row}:{$c4}{$row}")->getNumberFormat()->setFormatCode($m['format']);
+            $sheet->getStyle("{$c3}{$row}:{$c4}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            
+            $sheet->setCellValue("{$c6}{$row}", $m['val']);
+            $sheet->getStyle("{$c6}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("{$c6}{$row}")->getNumberFormat()->setFormatCode($m['format']);
+            $sheet->getStyle("{$c6}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            $sheet->getStyle("{$c6}{$row}")->getFont()->setBold(true);
+            $row++;
+        }
+        
+        $achAll = $allTotals['target'] > 0 ? ($allTotals['output'] / $allTotals['target']) : 0;
         $sheet->mergeCells("{$c1}{$row}:{$c2}{$row}");
         $sheet->setCellValue("{$c1}{$row}", "% of Achieved");
-        $sheet->getStyle("{$c1}{$row}")->applyFromArray($labelStyle);
-
-        $ach = $totals['target'] > 0 ? ($totals['output'] / $totals['target']) : 0;
-
-        $sheet->mergeCells("{$c3}{$row}:{$c5}{$row}");
-        $sheet->setCellValue("{$c3}{$row}", $ach);
-        $sheet->getStyle("{$c3}{$row}")->applyFromArray($dataStyle);
-        $sheet->getStyle("{$c3}{$row}")->getNumberFormat()->setFormatCode('0.00%');
-        $sheet->getStyle("{$c3}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
-
-        $sheet->setCellValue("{$c7}{$row}", $ach);
-        $sheet->getStyle("{$c7}{$row}")->applyFromArray($dataStyle);
-        $sheet->getStyle("{$c7}{$row}")->getNumberFormat()->setFormatCode('0.00%');
-        $row++;
-
-        // Footer Special blocks
-        $row++;
-        $sheet->setCellValue("{$c3}{$row}", "WAITING CHECK");
-        $sheet->getStyle("{$c3}{$row}")->getFont()->setBold(true)->setItalic(true);
-        $sheet->getStyle("{$c3}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         
-        $sheet->setCellValue("{$c5}{$row}", $totals['lines_count'] * 5); // Dummy or calculated logic
-        $sheet->getStyle("{$c5}{$row}")->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle("{$c5}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $sheet->mergeCells("{$c7}{$row}:{$c7}" . ($row+1));
-        $sheet->setCellValue("{$c7}{$row}", "OFFLINE\nSEWER :");
-        $sheet->getStyle("{$c7}{$row}")->getAlignment()->setWrapText(true);
-        $sheet->getStyle("{$c7}{$row}")->applyFromArray($headerStyle);
-
-        $row++;
         $sheet->mergeCells("{$c3}{$row}:{$c4}{$row}");
-        $sheet->setCellValue("{$c3}{$row}", "SUM PRECENTAGE SOA = ");
-        $sheet->getStyle("{$c3}{$row}")->getFont()->setBold(true)->setItalic(true);
-        $sheet->getStyle("{$c3}{$row}")->getFont()->getColor()->setRGB('FF0000');
-        $sheet->getStyle("{$c3}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
-
-        $sheet->setCellValue("{$c5}{$row}", $ach);
-        $sheet->getStyle("{$c5}{$row}")->getFont()->setBold(true)->setItalic(true);
-        $sheet->getStyle("{$c5}{$row}")->getFont()->getColor()->setRGB('FF0000');
-        $sheet->getStyle("{$c5}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
-        $sheet->getStyle("{$c5}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("{$c5}{$row}")->getNumberFormat()->setFormatCode('0.00%');
-    }
-
-    private function getLineCategory($lineName) {
-        $name = strtoupper($lineName);
-        $isNS = str_contains($name, 'NS');
-        preg_match('/\d+/', $name, $matches);
-        $num = isset($matches[0]) ? (int)$matches[0] : null;
-
-        if ($num === null) return 'OTHER';
-
-        if (!$isNS) {
-            if ($num >= 1 && $num <= 8) return 'A1-8';
-            if ($num >= 9 && $num <= 16) return 'A9-16';
-        } else {
-            if ($num >= 1 && $num <= 8) return 'A1-8 NS';
-            if ($num >= 9 && $num <= 16) return 'A9-16 NS';
-        }
-        return 'OTHER';
+        $sheet->setCellValue("{$c3}{$row}", $achAll);
+        
+        $sheet->setCellValue("{$c6}{$row}", $achAll);
+        
+        $range = "{$c1}{$row}:{$c6}{$row}";
+        $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle($range)->getFont()->setBold(true);
+        $sheet->getStyle("{$c3}{$row}")->getNumberFormat()->setFormatCode('0.00%');
+        $sheet->getStyle("{$c6}{$row}")->getNumberFormat()->setFormatCode('0.00%');
+        $sheet->getStyle("{$c1}{$row}:{$c4}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
+        $sheet->getStyle("{$c6}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFE699');
+        $row += 2;
+        
+        $sheet->mergeCells("{$c2}{$row}:{$c3}{$row}");
+        $sheet->setCellValue("{$c2}{$row}", "Production Manager");
+        $sheet->mergeCells("{$c4}{$row}:{$c5}{$row}");
+        $sheet->setCellValue("{$c4}{$row}", "Production Manager");
+        $sheet->mergeCells("{$c7}{$row}:{$c7}{$row}");
+        $sheet->setCellValue("{$c7}{$row}", "FACTORY MANAGER");
+        $sheet->getStyle("{$c2}{$row}:{$c7}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("{$c2}{$row}:{$c7}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c2}{$row}:{$c3}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFC000');
+        $sheet->getStyle("{$c4}{$row}:{$c5}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFC000');
+        $sheet->getStyle("{$c7}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFC000');
+        $sheet->getStyle("{$c2}{$row}:{$c3}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("{$c4}{$row}:{$c5}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        
+        $sheet->mergeCells("{$c2}" . ($row+1) . ":{$c3}" . ($row+2));
+        $sheet->mergeCells("{$c4}" . ($row+1) . ":{$c5}" . ($row+2));
+        $sheet->mergeCells("{$c7}" . ($row+1) . ":{$c7}" . ($row+2));
+        $sheet->getStyle("{$c2}" . ($row+1) . ":{$c3}" . ($row+2))->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("{$c4}" . ($row+1) . ":{$c5}" . ($row+2))->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("{$c7}" . ($row+1) . ":{$c7}" . ($row+2))->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $row += 3;
+        
+        $sheet->mergeCells("{$c2}{$row}:{$c3}{$row}");
+        $sheet->setCellValue("{$c2}{$row}", "MS. Sri Sutarmi");
+        $sheet->mergeCells("{$c4}{$row}:{$c5}{$row}");
+        $sheet->setCellValue("{$c4}{$row}", "MS. Anabel");
+        $sheet->mergeCells("{$c7}{$row}:{$c7}{$row}");
+        $sheet->setCellValue("{$c7}{$row}", "MS. QING FEN YE");
+        $sheet->getStyle("{$c2}{$row}:{$c7}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("{$c2}{$row}:{$c7}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c2}{$row}:{$c3}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("{$c4}{$row}:{$c5}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $row++;
+        
+        $sheet->mergeCells("{$c2}{$row}:{$c3}{$row}");
+        $sheet->setCellValue("{$c2}{$row}", "WAITING CHECK");
+        $sheet->getStyle("{$c2}{$row}")->getFont()->setBold(true)->setItalic(true);
+        $sheet->getStyle("{$c2}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c2}{$row}:{$c3}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->mergeCells("{$c4}{$row}:{$c5}{$row}");
+        $sheet->setCellValue("{$c4}{$row}", $allTotals['lines_count'] * 5);
+        $sheet->getStyle("{$c4}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("{$c4}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c4}{$row}:{$c5}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->setCellValue("{$c6}{$row}", "OFFLINE\nSEWER :");
+        $sheet->getStyle("{$c6}{$row}")->getFont()->setBold(true)->setItalic(true);
+        $sheet->getStyle("{$c6}{$row}")->getAlignment()->setWrapText(true)->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c6}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->setCellValue("{$c7}{$row}", "10");
+        $sheet->getStyle("{$c7}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("{$c7}{$row}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c7}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $row++;
+        
+        $sheet->mergeCells("{$c2}{$row}:{$c5}{$row}");
+        $sheet->getStyle("{$c2}{$row}:{$c5}{$row}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
+        $sheet->getStyle("{$c2}{$row}:{$c5}{$row}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
     }
 }
