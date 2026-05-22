@@ -65,24 +65,21 @@ class ProductivityStatisticsController extends Controller
             if (!isset($aggregated[$glKey])) {
                 $aggregated[$glKey] = [
                     'gl_number' => $item['gl_number'],
-                    'order_qty' => $item['order_qty'], // Assuming same order_qty for all colors in the lot
+                    'order_qty' => $item['order_qty'], 
                     'output_qty' => 0,
                     'balance' => 0,
                     'days_running' => $item['days_running'],
                     'achievement' => 0,
                     'last_update' => $item['last_update'],
-                    'colors' => []
+                    'is_set_item' => false,
+                    'colors' => [],
+                    'color_parts' => [] // temporary map to track sets
                 ];
             } else {
-                // If a GL has multiple lots with different order_qtys, we might want to take the max or sum
-                // But typically gmt_qty is per GL. Let's take the max just to be safe if they differ.
                 if ($item['order_qty'] > $aggregated[$glKey]['order_qty']) {
                     $aggregated[$glKey]['order_qty'] = $item['order_qty'];
                 }
             }
-
-            // Accumulate output
-            $aggregated[$glKey]['output_qty'] += $item['output_qty'];
             
             if ($item['last_update'] > $aggregated[$glKey]['last_update']) {
                 $aggregated[$glKey]['last_update'] = $item['last_update'];
@@ -97,14 +94,50 @@ class ProductivityStatisticsController extends Controller
                 'output_qty' => $item['output_qty'],
                 'achievement' => $item['achievement']
             ];
+
+            // Parse color string to detect Set items (TOP/PANT)
+            $colorName = trim($item['color']);
+            $baseName = $colorName;
+            $type = 'other';
+            
+            if (preg_match('/(.*?)\s*\((TOP|PANT|PANTS)\)$/i', $colorName, $matches)) {
+                $baseName = trim($matches[1]);
+                $typeMatch = strtoupper($matches[2]);
+                $type = $typeMatch === 'TOP' ? 'top' : 'pant';
+                $aggregated[$glKey]['is_set_item'] = true;
+            }
+
+            if (!isset($aggregated[$glKey]['color_parts'][$baseName])) {
+                $aggregated[$glKey]['color_parts'][$baseName] = ['top' => 0, 'pant' => 0, 'other' => 0, 'has_set' => false];
+            }
+            
+            $aggregated[$glKey]['color_parts'][$baseName][$type] += $item['output_qty'];
+            if ($type !== 'other') {
+                $aggregated[$glKey]['color_parts'][$baseName]['has_set'] = true;
+            }
         }
 
         // Final calculations for GL level
         foreach ($aggregated as &$gl) {
+            $totalOutput = 0;
+            foreach ($gl['color_parts'] as $baseName => $parts) {
+                if ($parts['has_set']) {
+                    // Min pairs of top and pant
+                    $setPairs = min($parts['top'], $parts['pant']);
+                    $totalOutput += $setPairs;
+                    $totalOutput += $parts['other'];
+                } else {
+                    $totalOutput += $parts['other'];
+                }
+            }
+            
+            $gl['output_qty'] = $totalOutput;
             $gl['balance'] = $gl['output_qty'] - $gl['order_qty'];
             $gl['achievement'] = $gl['order_qty'] > 0 
                 ? round(($gl['output_qty'] / $gl['order_qty']) * 100, 2) 
                 : 0;
+                
+            unset($gl['color_parts']); // remove temp map
         }
 
         return response()->json([
