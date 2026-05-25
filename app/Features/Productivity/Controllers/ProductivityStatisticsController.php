@@ -225,49 +225,98 @@ class ProductivityStatisticsController extends Controller
                 'minutes' => $minutes
             ];
         }
+        
+        $summary = [];
+        foreach ($data as $item) {
+            $glLot = $item['gl_lot'];
+            if (!isset($summary[$glLot])) {
+                $summary[$glLot] = [
+                    'gl_lot' => $glLot,
+                    'style' => $item['style'],
+                    'input_qty' => 0,
+                    'output_qty' => 0,
+                    'minutes' => 0,
+                ];
+            }
+            $summary[$glLot]['input_qty'] += $item['input_qty'];
+            $summary[$glLot]['output_qty'] += $item['output_qty'];
+            $summary[$glLot]['minutes'] += $item['minutes'];
+        }
 
-        return $data;
+        return [
+            'detailed' => $data,
+            'summary' => array_values($summary)
+        ];
     }
 
     public function outputSewingReport(Request $request)
     {
-        $data = $this->getOutputSewingReportData($request);
+        $reportData = $this->getOutputSewingReportData($request);
         return response()->json([
             'status' => 'success',
-            'data' => $data
+            'data' => $reportData['detailed'],
+            'summary' => $reportData['summary']
         ]);
     }
 
     public function exportOutputSewingReport(Request $request)
     {
-        $data = $this->getOutputSewingReportData($request);
+        $reportData = $this->getOutputSewingReportData($request);
+        $detailedData = $reportData['detailed'];
+        $summaryData = $reportData['summary'];
 
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-        // Headers
-        $headers = ['Date', 'GL-LOT', 'Style', 'Input Qty', 'Output Qty', 'Color', 'Ship Date', 'SAM', 'Minutes'];
-        $sheet->fromArray([$headers], NULL, 'A1');
         
-        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        // --- Sheet 1: Detailed ---
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Detailed View');
+
+        $headers1 = ['Date', 'GL-LOT', 'Style', 'Input Qty', 'Output Qty', 'Color', 'Ship Date', 'SAM', 'Minutes'];
+        $sheet1->fromArray([$headers1], NULL, 'A1');
+        
+        $sheet1->getStyle('A1:I1')->getFont()->setBold(true);
 
         $row = 2;
-        foreach ($data as $item) {
-            $sheet->setCellValue('A' . $row, $item['date']);
-            $sheet->setCellValue('B' . $row, $item['gl_lot']);
-            $sheet->setCellValue('C' . $row, $item['style']);
-            $sheet->setCellValue('D' . $row, $item['input_qty']);
-            $sheet->setCellValue('E' . $row, $item['output_qty']);
-            $sheet->setCellValue('F' . $row, $item['color']);
-            $sheet->setCellValue('G' . $row, $item['ship_date']);
-            $sheet->setCellValue('H' . $row, $item['sam']);
-            $sheet->setCellValue('I' . $row, $item['minutes']);
+        foreach ($detailedData as $item) {
+            $sheet1->setCellValue('A' . $row, $item['date']);
+            $sheet1->setCellValue('B' . $row, $item['gl_lot']);
+            $sheet1->setCellValue('C' . $row, $item['style']);
+            $sheet1->setCellValue('D' . $row, $item['input_qty']);
+            $sheet1->setCellValue('E' . $row, $item['output_qty']);
+            $sheet1->setCellValue('F' . $row, $item['color']);
+            $sheet1->setCellValue('G' . $row, $item['ship_date']);
+            $sheet1->setCellValue('H' . $row, $item['sam']);
+            $sheet1->setCellValue('I' . $row, $item['minutes']);
             $row++;
         }
 
         foreach (range('A', 'I') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $sheet1->getColumnDimension($col)->setAutoSize(true);
         }
+
+        // --- Sheet 2: Summary ---
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('GL Summary');
+        
+        $headers2 = ['GL-LOT', 'Style', 'Total Input Qty', 'Total Output Qty', 'Total Minutes'];
+        $sheet2->fromArray([$headers2], NULL, 'A1');
+        $sheet2->getStyle('A1:E1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($summaryData as $item) {
+            $sheet2->setCellValue('A' . $row, $item['gl_lot']);
+            $sheet2->setCellValue('B' . $row, $item['style']);
+            $sheet2->setCellValue('C' . $row, $item['input_qty']);
+            $sheet2->setCellValue('D' . $row, $item['output_qty']);
+            $sheet2->setCellValue('E' . $row, $item['minutes']);
+            $row++;
+        }
+
+        foreach (range('A', 'E') as $col) {
+            $sheet2->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
 
         $fileName = 'Output_Sewing_Report_' . now()->format('Ymd_His') . '.xlsx';
         $writer = new Xlsx($spreadsheet);
