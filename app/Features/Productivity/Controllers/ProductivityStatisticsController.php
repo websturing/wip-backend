@@ -174,22 +174,22 @@ class ProductivityStatisticsController extends Controller
 
         $query = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
             ->join('productions', 'production_items.production_id', '=', 'productions.id')
+            ->join('lines', 'productions.line_id', '=', 'lines.id')
             ->where('production_items.section', 'inline')
             ->select(
+                'productions.production_date as date',
+                'lines.name as line_name',
                 'production_items.lot_id',
                 'production_items.color',
-                'production_item_details.size_name',
                 DB::raw('SUM(qty_input) as input_qty'),
-                DB::raw('SUM(qty_output) as output_qty'),
-                DB::raw('MIN(productions.production_date) as start_date'),
-                DB::raw('MAX(productions.production_date) as last_update')
+                DB::raw('SUM(qty_output) as output_qty')
             );
             
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('productions.production_date', [$request->start_date, $request->end_date]);
         }
 
-        $outputs = $query->groupBy('production_items.lot_id', 'production_items.color', 'production_item_details.size_name')
+        $outputs = $query->groupBy('productions.production_date', 'lines.name', 'production_items.lot_id', 'production_items.color')
             ->get();
 
         $data = [];
@@ -198,23 +198,19 @@ class ProductivityStatisticsController extends Controller
             if (!$lot) continue;
 
             $colorName = trim($out->color);
-            $size = trim($out->size_name);
-            if ($size && strtoupper($size) !== 'TOTAL') {
-                $displayColor = $colorName . ' - ' . $size;
-            } else {
-                $displayColor = $colorName;
-            }
+            $displayColor = $colorName;
 
             $orderQty = (int) $out->input_qty;
             $outputQty = (int) $out->output_qty;
             $sam = $lot->sam ?: 0;
             $minutes = $outputQty * $sam;
             
-            $lastUpdate = Carbon::parse($out->last_update)->format('Y-m-d');
+            $lastUpdate = Carbon::parse($out->date)->format('Y-m-d');
             $shipDate = $lot->delivery_date ? Carbon::parse($lot->delivery_date)->format('Y-m-d') : '';
 
             $data[] = [
                 'date' => $lastUpdate,
+                'line_name' => $out->line_name,
                 'gl_lot' => $lot->lot_code,
                 'style' => $lot->style_no,
                 'input_qty' => $orderQty,
@@ -267,53 +263,77 @@ class ProductivityStatisticsController extends Controller
 
         $spreadsheet = new Spreadsheet();
         
-        // --- Sheet 1: Detailed ---
+        // --- Sheet 1: Input ---
         $sheet1 = $spreadsheet->getActiveSheet();
-        $sheet1->setTitle('Detailed View');
+        $sheet1->setTitle('Input');
 
-        $headers1 = ['Date', 'GL-LOT', 'Style', 'Input Qty', 'Output Qty', 'Color', 'Ship Date', 'SAM', 'Minutes'];
+        $headers1 = ['Date', 'Line', 'GL-LOT', 'Style', 'Input Qty', 'Color', 'Ship Date'];
         $sheet1->fromArray([$headers1], NULL, 'A1');
         
-        $sheet1->getStyle('A1:I1')->getFont()->setBold(true);
+        $sheet1->getStyle('A1:G1')->getFont()->setBold(true);
 
         $row = 2;
         foreach ($detailedData as $item) {
             $sheet1->setCellValue('A' . $row, $item['date']);
-            $sheet1->setCellValue('B' . $row, $item['gl_lot']);
-            $sheet1->setCellValue('C' . $row, $item['style']);
-            $sheet1->setCellValue('D' . $row, $item['input_qty']);
-            $sheet1->setCellValue('E' . $row, $item['output_qty']);
+            $sheet1->setCellValue('B' . $row, $item['line_name']);
+            $sheet1->setCellValue('C' . $row, $item['gl_lot']);
+            $sheet1->setCellValue('D' . $row, $item['style']);
+            $sheet1->setCellValue('E' . $row, $item['input_qty']);
             $sheet1->setCellValue('F' . $row, $item['color']);
             $sheet1->setCellValue('G' . $row, $item['ship_date']);
-            $sheet1->setCellValue('H' . $row, $item['sam']);
-            $sheet1->setCellValue('I' . $row, $item['minutes']);
+            $row++;
+        }
+
+        foreach (range('A', 'G') as $col) {
+            $sheet1->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // --- Sheet 2: Output ---
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Output');
+        
+        $headers2 = ['Date', 'Line', 'GL-LOT', 'Style', 'Output Qty', 'Color', 'Ship Date', 'SAM', 'Minutes'];
+        $sheet2->fromArray([$headers2], NULL, 'A1');
+        $sheet2->getStyle('A1:I1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($detailedData as $item) {
+            $sheet2->setCellValue('A' . $row, $item['date']);
+            $sheet2->setCellValue('B' . $row, $item['line_name']);
+            $sheet2->setCellValue('C' . $row, $item['gl_lot']);
+            $sheet2->setCellValue('D' . $row, $item['style']);
+            $sheet2->setCellValue('E' . $row, $item['output_qty']);
+            $sheet2->setCellValue('F' . $row, $item['color']);
+            $sheet2->setCellValue('G' . $row, $item['ship_date']);
+            $sheet2->setCellValue('H' . $row, $item['sam']);
+            $sheet2->setCellValue('I' . $row, $item['minutes']);
             $row++;
         }
 
         foreach (range('A', 'I') as $col) {
-            $sheet1->getColumnDimension($col)->setAutoSize(true);
+            $sheet2->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // --- Sheet 2: Summary ---
-        $sheet2 = $spreadsheet->createSheet();
-        $sheet2->setTitle('GL Summary');
+        // --- Sheet 3: Summary ---
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('GL Summary');
         
-        $headers2 = ['GL-LOT', 'Style', 'Total Input Qty', 'Total Output Qty', 'Total Minutes'];
-        $sheet2->fromArray([$headers2], NULL, 'A1');
-        $sheet2->getStyle('A1:E1')->getFont()->setBold(true);
+        $headers3 = ['GL-LOT', 'Style', 'Total Input Qty', 'Total Output Qty', 'Total Minutes'];
+        $sheet3->fromArray([$headers3], NULL, 'A1');
+        $sheet3->getStyle('A1:E1')->getFont()->setBold(true);
 
         $row = 2;
         foreach ($summaryData as $item) {
-            $sheet2->setCellValue('A' . $row, $item['gl_lot']);
-            $sheet2->setCellValue('B' . $row, $item['style']);
-            $sheet2->setCellValue('C' . $row, $item['input_qty']);
-            $sheet2->setCellValue('D' . $row, $item['output_qty']);
-            $sheet2->setCellValue('E' . $row, $item['minutes']);
+            $sheet3->setCellValue('A' . $row, $item['gl_lot']);
+            $sheet3->setCellValue('B' . $row, $item['style']);
+            $sheet3->setCellValue('C' . $row, $item['input_qty']);
+            $sheet3->setCellValue('D' . $row, $item['output_qty']);
+            $sheet3->setCellValue('E' . $row, $item['minutes']);
             $row++;
         }
 
         foreach (range('A', 'E') as $col) {
-            $sheet2->getColumnDimension($col)->setAutoSize(true);
+            $sheet3->getColumnDimension($col)->setAutoSize(true);
         }
 
         $spreadsheet->setActiveSheetIndex(0);
