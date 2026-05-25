@@ -109,11 +109,18 @@ class MenuController extends Controller
                         'icon' => 'solar:pie-chart-2-broken',
                         'permission' => 'production.read',
                     ],
-                     [
+                    [
                         'id' => 'm3-4',
                         'name' => 'Summary Statistic',
                         'path' => '/admin/detailed-statistics',
                         'icon' => 'solar:chart-square-bold-duotone',
+                        'permission' => 'production.read',
+                    ],
+                    [
+                        'id' => 'm3-5',
+                        'name' => 'Output Sewing Report',
+                        'path' => '/admin/report/output-sewing',
+                        'icon' => 'solar:file-download-bold-duotone',
                         'permission' => 'production.read',
                     ],
                 ]

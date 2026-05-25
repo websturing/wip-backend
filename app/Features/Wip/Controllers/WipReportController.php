@@ -63,6 +63,7 @@ class WipReportController extends Controller
             ->join('productions', 'production_items.production_id', '=', 'productions.id')
             ->join('lines', 'productions.line_id', '=', 'lines.id')
             ->whereIn('production_items.lot_id', $lots->pluck('id'))
+            ->where('production_items.section', 'inline')
             ->select(
                 'production_items.lot_id',
                 DB::raw('SUM(qty_output) as total_output'),
@@ -231,6 +232,7 @@ class WipReportController extends Controller
             ->whereIn('production_items.color', $colors)
             ->select(
                 'production_items.color',
+                'production_items.section',
                 'productions.production_date',
                 'lines.name as line_name',
                 'size_name',
@@ -303,6 +305,7 @@ class WipReportController extends Controller
 
             // Group Output per color (qty_output > 0)
             $groupedOutput = $colorData->where('qty_output', '>', 0)
+                ->where('section', 'inline')
                 ->groupBy(function($item) {
                     return $item->production_date . '|' . $item->line_name;
                 })->map(function($items, $key) use ($sizes) {

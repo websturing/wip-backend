@@ -183,7 +183,7 @@ class ProductivityExportService
                     $catTotals[$catKey]['output'] += $output;
 
                     $this->drawStyleBlock($sheet, 'B', $row, $lotGroup, $productivity, $productionData, $cuttingCache);
-                    $row += 9; // Reverted to 9 after removing Offline Output
+                    $row += 8; // Reverted to 8 after removing Archived
                 }
             }
             
@@ -246,7 +246,7 @@ class ProductivityExportService
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ];
 
-        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 6)); 
+        $sheet->mergeCells("{$c1}{$row}:{$c1}" . ($row + 5)); 
         $sheet->setCellValue("{$c1}{$row}", $productivity->line->name);
         $sheet->getStyle("{$c1}{$row}")->applyFromArray($headerStyle);
         $sheet->getStyle("{$c1}{$row}")->getAlignment()->setTextRotation(90);
@@ -311,7 +311,7 @@ class ProductivityExportService
         $sheet->getStyle("{$c5}" . ($row + 2))->applyFromArray($labelStyle);
 
         // Image Placeholder
-        $sheet->mergeCells("{$c5}" . ($row + 3) . ":{$c5}" . ($row + 6));
+        $sheet->mergeCells("{$c5}" . ($row + 3) . ":{$c5}" . ($row + 5));
         if ($firstLot->pivot->media && $firstLot->pivot->media->file_path) {
             $this->addDrawing($sheet, $c5, $row + 3, $firstLot->pivot->media->file_path);
         }
@@ -364,32 +364,25 @@ class ProductivityExportService
         $sheet->getStyle("{$c7}" . ($row + 2))->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("{$c7}" . ($row + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 3), "Archived");
+        $sheet->setCellValue("{$c6}" . ($row + 3), "% Achieved");
         $sheet->getStyle("{$c6}" . ($row + 3))->applyFromArray($labelStyle);
         $sheet->getStyle("{$c6}" . ($row + 3))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->setCellValue("{$c7}" . ($row + 3), $totalOutput);
-        $sheet->getStyle("{$c7}" . ($row + 3))->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle("{$c7}" . ($row + 3))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-
-        $sheet->setCellValue("{$c6}" . ($row + 4), "% Achieved");
-        $sheet->getStyle("{$c6}" . ($row + 4))->applyFromArray($labelStyle);
-        $sheet->getStyle("{$c6}" . ($row + 4))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         
         $achieved = $target > 0 ? ($dailyOutput / $target) : 0;
-        $cellAch = $c7 . ($row + 4);
+        $cellAch = $c7 . ($row + 3);
         $sheet->setCellValue($cellAch, $achieved);
         $sheet->getStyle($cellAch)->getNumberFormat()->setFormatCode('0.00%');
         $sheet->getStyle($cellAch)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFF00');
         $sheet->getStyle($cellAch)->getFont()->setBold(true);
         $sheet->getStyle($cellAch)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $sheet->setCellValue("{$c6}" . ($row + 5), "Balance");
-        $sheet->getStyle("{$c6}" . ($row + 5))->applyFromArray($labelStyle);
-        $sheet->getStyle("{$c6}" . ($row + 5))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->setCellValue("{$c6}" . ($row + 4), "Balance");
+        $sheet->getStyle("{$c6}" . ($row + 4))->applyFromArray($labelStyle);
+        $sheet->getStyle("{$c6}" . ($row + 4))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         // Formula: Total Output - Order Qty (shows negative if lacking)
-        $sheet->setCellValue("{$c7}" . ($row + 5), $totalOutput - $orderQty);
-        $sheet->getStyle("{$c7}" . ($row + 5))->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle("{$c7}" . ($row + 5))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->setCellValue("{$c7}" . ($row + 4), $totalOutput - $orderQty);
+        $sheet->getStyle("{$c7}" . ($row + 4))->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("{$c7}" . ($row + 4))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         // Day calculation
         $earliestDate = null;
@@ -412,26 +405,26 @@ class ProductivityExportService
         }
         $days = $earliestDate ? \Carbon\Carbon::parse($earliestDate)->diffInDays(\Carbon\Carbon::parse($productivityDate)) + 1 : 1;
 
-        $sheet->setCellValue("{$c6}" . ($row + 6), "Day");
-        $sheet->getStyle("{$c6}" . ($row + 6))->applyFromArray($labelStyle);
-        $sheet->getStyle("{$c6}" . ($row + 6))->getFont()->getColor()->setRGB('FF0000');
-        $sheet->getStyle("{$c6}" . ($row + 6))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue("{$c6}" . ($row + 5), "Day");
+        $sheet->getStyle("{$c6}" . ($row + 5))->applyFromArray($labelStyle);
+        $sheet->getStyle("{$c6}" . ($row + 5))->getFont()->getColor()->setRGB('FF0000');
+        $sheet->getStyle("{$c6}" . ($row + 5))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->setCellValue("{$c7}" . ($row + 6), $days);
-        $sheet->getStyle("{$c7}" . ($row + 6))->getFont()->getColor()->setRGB('FF0000');
-        $sheet->getStyle("{$c7}" . ($row + 6))->getFont()->setBold(true);
-        $sheet->getStyle("{$c7}" . ($row + 6))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("{$c7}" . ($row + 6))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->setCellValue("{$c7}" . ($row + 5), $days);
+        $sheet->getStyle("{$c7}" . ($row + 5))->getFont()->getColor()->setRGB('FF0000');
+        $sheet->getStyle("{$c7}" . ($row + 5))->getFont()->setBold(true);
+        $sheet->getStyle("{$c7}" . ($row + 5))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("{$c7}" . ($row + 5))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
         // EXTRA DECORATION: Orange bottom for Section Label
-        $sheet->mergeCells("{$c5}" . ($row+8) . ":{$c5}" . ($row+8));
+        $sheet->mergeCells("{$c5}" . ($row+7) . ":{$c5}" . ($row+7));
         $section = strtoupper($firstLot->pivot->section ?? 'ALL');
-        $sheet->setCellValue("{$c5}" . ($row+8), $section);
-        $sheet->getStyle("{$c5}" . ($row+8))->applyFromArray($headerStyle);
-        $sheet->getStyle("{$c5}" . ($row+8))->getFill()->getStartColor()->setRGB('FFC000');
+        $sheet->setCellValue("{$c5}" . ($row+7), $section);
+        $sheet->getStyle("{$c5}" . ($row+7))->applyFromArray($headerStyle);
+        $sheet->getStyle("{$c5}" . ($row+7))->getFill()->getStartColor()->setRGB('FFC000');
 
         // Row height adjustment
-        for ($i = 0; $i <= 8; $i++) {
+        for ($i = 0; $i <= 7; $i++) {
             $sheet->getRowDimension($row + $i)->setRowHeight(25);
         }
 

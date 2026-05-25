@@ -1,24 +1,13 @@
 <?php
+$file = '/var/www/html/wip/api/app/Features/Productivity/Controllers/ProductivityStatisticsController.php';
+$content = file_get_contents($file);
 
-namespace App\Features\Productivity\Controllers;
-
-use App\Http\Controllers\Controller;
-use App\Features\Reference\Models\Lot;
-use App\Features\Production\Models\ProductionItemDetail;
-use App\Features\Production\Models\ProductionItem;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-
-class ProductivityStatisticsController extends Controller
-{
-            public function detailedStatistics(Request $request)
+$newMethod = <<<'CODE'
+    public function detailedStatistics(Request $request)
     {
         $lots = Lot::where('is_cancelled', false)->with('glGroup.customer')->get();
 
-        $query = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
+        $outputs = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
             ->join('productions', 'production_items.production_id', '=', 'productions.id')
             ->select(
                 'production_items.lot_id',
@@ -28,13 +17,8 @@ class ProductivityStatisticsController extends Controller
                 DB::raw('SUM(qty_output) as output_qty'),
                 DB::raw('MIN(productions.production_date) as start_date'),
                 DB::raw('MAX(productions.production_date) as last_update')
-            );
-            
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('productions.production_date', [$request->start_date, $request->end_date]);
-        }
-
-        $outputs = $query->groupBy('production_items.lot_id', 'production_items.color', 'production_item_details.size_name')
+            )
+            ->groupBy('production_items.lot_id', 'production_items.color', 'production_item_details.size_name')
             ->get();
 
         $data = [];
@@ -167,114 +151,13 @@ class ProductivityStatisticsController extends Controller
             'data' => array_values($aggregated)
         ]);
     }
+CODE;
 
-    private function getOutputSewingReportData(Request $request)
-    {
-        $lots = Lot::where('is_cancelled', false)->with('glGroup.customer')->get();
-
-        $query = ProductionItemDetail::join('production_items', 'production_item_details.production_item_id', '=', 'production_items.id')
-            ->join('productions', 'production_items.production_id', '=', 'productions.id')
-            ->where('production_items.section', 'inline')
-            ->select(
-                'production_items.lot_id',
-                'production_items.color',
-                'production_item_details.size_name',
-                DB::raw('SUM(qty_input) as input_qty'),
-                DB::raw('SUM(qty_output) as output_qty'),
-                DB::raw('MIN(productions.production_date) as start_date'),
-                DB::raw('MAX(productions.production_date) as last_update')
-            );
-            
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('productions.production_date', [$request->start_date, $request->end_date]);
-        }
-
-        $outputs = $query->groupBy('production_items.lot_id', 'production_items.color', 'production_item_details.size_name')
-            ->get();
-
-        $data = [];
-        foreach ($outputs as $out) {
-            $lot = $lots->firstWhere('id', $out->lot_id);
-            if (!$lot) continue;
-
-            $colorName = trim($out->color);
-            $size = trim($out->size_name);
-            if ($size && strtoupper($size) !== 'TOTAL') {
-                $displayColor = $colorName . ' - ' . $size;
-            } else {
-                $displayColor = $colorName;
-            }
-
-            $orderQty = (int) $out->input_qty;
-            $outputQty = (int) $out->output_qty;
-            $sam = $lot->sam ?: 0;
-            $minutes = $outputQty * $sam;
-            
-            $lastUpdate = Carbon::parse($out->last_update)->format('Y-m-d');
-            $shipDate = $lot->delivery_date ? Carbon::parse($lot->delivery_date)->format('Y-m-d') : '';
-
-            $data[] = [
-                'date' => $lastUpdate,
-                'gl_lot' => $lot->lot_code,
-                'style' => $lot->style_no,
-                'input_qty' => $orderQty,
-                'output_qty' => $outputQty,
-                'color' => $displayColor,
-                'ship_date' => $shipDate,
-                'sam' => $sam,
-                'minutes' => $minutes
-            ];
-        }
-
-        return $data;
-    }
-
-    public function outputSewingReport(Request $request)
-    {
-        $data = $this->getOutputSewingReportData($request);
-        return response()->json([
-            'status' => 'success',
-            'data' => $data
-        ]);
-    }
-
-    public function exportOutputSewingReport(Request $request)
-    {
-        $data = $this->getOutputSewingReportData($request);
-
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-        // Headers
-        $headers = ['Date', 'GL-LOT', 'Style', 'Input Qty', 'Output Qty', 'Color', 'Ship Date', 'SAM', 'Minutes'];
-        $sheet->fromArray([$headers], NULL, 'A1');
-        
-        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
-
-        $row = 2;
-        foreach ($data as $item) {
-            $sheet->setCellValue('A' . $row, $item['date']);
-            $sheet->setCellValue('B' . $row, $item['gl_lot']);
-            $sheet->setCellValue('C' . $row, $item['style']);
-            $sheet->setCellValue('D' . $row, $item['input_qty']);
-            $sheet->setCellValue('E' . $row, $item['output_qty']);
-            $sheet->setCellValue('F' . $row, $item['color']);
-            $sheet->setCellValue('G' . $row, $item['ship_date']);
-            $sheet->setCellValue('H' . $row, $item['sam']);
-            $sheet->setCellValue('I' . $row, $item['minutes']);
-            $row++;
-        }
-
-        foreach (range('A', 'I') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
-
-        $fileName = 'Output_Sewing_Report_' . now()->format('Ymd_His') . '.xlsx';
-        $writer = new Xlsx($spreadsheet);
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'excel');
-        $writer->save($tempFile);
-
-        return response()->download($tempFile, $fileName)->deleteFileAfterSend(true);
-    }
+$pattern = '/public function detailedStatistics\(Request \$request\).*?^    \}/ms';
+if (preg_match($pattern, $content)) {
+    $content = preg_replace($pattern, $newMethod, $content);
+    file_put_contents($file, $content);
+    echo "Controller replaced successfully.\n";
+} else {
+    echo "Could not match method signature.\n";
 }
