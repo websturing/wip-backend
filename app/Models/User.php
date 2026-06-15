@@ -36,4 +36,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(\App\Features\Acl\Models\Role::class);
     }
+
+    public function employee()
+    {
+        return $this->hasOne(\App\Features\Employee\Models\Employee::class);
+    }
 }
