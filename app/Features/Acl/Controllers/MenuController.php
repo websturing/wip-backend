@@ -4,6 +4,7 @@ namespace App\Features\Acl\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Features\Acl\Models\Menu;
 
 class MenuController extends Controller
 {
@@ -13,201 +14,110 @@ class MenuController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
-        // Define the Master Menu Structure
-        $masterMenus = [
-            [
-                'id' => 'm1',
-                'name' => 'Dashboard',
-                'path' => '/admin',
-                'icon' => 'solar:home-2-linear',
-                'order' => 1
-            ],
-            [
-                'id' => 'm2',
-                'name' => 'Master Data',
-                'path' => '/admin/master',
-                'icon' => 'solar:database-linear',
-                'order' => 2,
-                'permission' => 'reference.read',
-                'children' => [
-                    [
-                        'id' => 'm2-1',
-                        'name' => 'Garment Reference',
-                        'path' => '/admin/reference',
-                        'icon' => 'solar:reorder-linear',
-                        'permission' => 'reference.read',
-                    ],
-                    [
-                        'id' => 'm2-2',
-                        'name' => 'Media Library',
-                        'path' => '/admin/media',
-                        'icon' => 'solar:gallery-linear',
-                        'permission' => 'reference.read',
-                    ],
-                ]
-            ],
-            [
-                'id' => 'm3',
-                'name' => 'Production',
-                'path' => '/admin/production-group',
-                'icon' => 'solar:documents-broken',
-                'order' => 3,
-                'permission' => 'production.read',
-                'children' => [
-                    [
-                        'id' => 'm3-1',
-                        'name' => 'Output',
-                        'path' => '/admin/production',
-                        'icon' => 'solar:chart-2-linear',
-                        'permission' => 'production.read',
-                    ],
-                    [
-                        'id' => 'm3-2',
-                        'name' => 'Lines',
-                        'path' => '/admin/lines',
-                        'icon' => 'solar:tablet-linear',
-                        'permission' => 'production.read',
-                    ],
-                    [
-                        'id' => 'm3-3',
-                        'name' => 'productivity',
-                        'path' => '/admin/productivity',
-                        'icon' => 'solar:pie-chart-2-broken',
-                        'permission' => 'production.read',
-                    ],
-                   
-                ]
-            ],
-            [
-                'id' => 'm4',
-                'name' => 'Industrial Eng.',
-                'path' => '/admin/ielayout',
-                'icon' => 'solar:layers-linear',
-                'order' => 4,
-                'permission' => 'ie_layout.read',
-            ],
-             [
-                'id' => 'm4-1',
-                'name' => 'Sewing Report',
-                'path' => '/admin/report',
-                'icon' => 'iconoir:git-compare',
-                'order' => 5,
-                'permission' => 'ie_layout.read',
-                'children' => [
-                    [
-                        'id' => 'm3-1',
-                        'name' => 'Completion',
-                        'path' => '/admin/report/balance-size',
-                        'icon' => 'solar:pie-chart-line-duotone',
-                        'permission' => 'production.read',
-                    ],
-                    [
-                        'id' => 'm3-3',
-                        'name' => 'Productivity',
-                        'path' => '/admin/report/productivity',
-                        'icon' => 'solar:pie-chart-2-broken',
-                        'permission' => 'production.read',
-                    ],
-                    [
-                        'id' => 'm3-4',
-                        'name' => 'Summary Statistic',
-                        'path' => '/admin/detailed-statistics',
-                        'icon' => 'solar:chart-square-bold-duotone',
-                        'permission' => 'production.read',
-                    ],
-                    [
-                        'id' => 'm3-5',
-                        'name' => 'Output Sewing Report',
-                        'path' => '/admin/report/output-sewing',
-                        'icon' => 'solar:file-download-bold-duotone',
-                        'permission' => 'production.read',
-                    ],
-                ]
-            ],
-            [
-                'id' => 'm4-2',
-                'name' => 'Packing',
-                'path' => '/admin/packing',
-                'icon' => 'mynaui:package',
-                'order' => 5,
-                'permission' => 'packing.read',
-                'children' => [
-                    [
-                        'id' => 'm4-2-1',
-                        'name' => 'Output',
-                        'path' => '/admin/packing',
-                        'icon' => 'boxicons:arrow-in-down-circle-half',
-                        'permission' => 'production.read',
-                    ],
-                ]
-            ],
-            [
-                'id' => 'm5',
-                'name' => 'Access Control',
-                'path' => '/admin/acl',
-                'icon' => 'solar:shield-check-linear',
-                'order' => 5,
-                'permission' => 'acl.read',
-                 'children' => [
-                    [
-                        'id' => 'm5-1',
-                        'name' => 'Roles',
-                        'path' => '/admin/acl?tab=roles',
-                        'icon' => 'solar:user-speak-rounded-bold-duotone',
-                        'permission' => 'acl.read',
-                    ],
-                    [
-                        'id' => 'm5-2',
-                        'name' => 'Permissions',
-                        'path' => '/admin/acl?tab=permissions',
-                        'icon' => 'solar:key-minimalistic-bold-duotone',
-                        'permission' => 'acl.read',
-                    ],
-                ]
-            ],
-        ];
+        $platform = $request->query('platform', 'both');
 
-        // Filter Menus based on permissions
-        $filteredMenus = $this->filterMenus($masterMenus, $user);
+        // If user has no role, return empty
+        if (!$user->role) {
+            return response()->json(['status' => 'success', 'data' => []]);
+        }
+
+        // Base query for menus
+        $query = Menu::where('is_active', true)
+            ->whereNull('parent_id') // Get only root menus
+            ->with(['children' => function($q) use ($platform) {
+                $q->where('is_active', true)->orderBy('sort_order');
+                if ($platform !== 'both') {
+                    $q->whereIn('platform', [$platform, 'both']);
+                }
+            }])
+            ->orderBy('sort_order');
+
+        if ($platform !== 'both') {
+            $query->whereIn('platform', [$platform, 'both']);
+        }
+
+        // If user is Administrator, get all active menus
+        if ($user->role->name === 'Administrator') {
+            $menus = $query->get();
+        } else {
+            // Otherwise, get only menus assigned to this role
+            $roleMenuIds = $user->role->menus()->pluck('menus.id')->toArray();
+            
+            $menus = $query->whereIn('id', $roleMenuIds)->get();
+
+            // Filter children to only those the role has access to
+            $menus->each(function ($menu) use ($roleMenuIds) {
+                $menu->setRelation('children', $menu->children->filter(function ($child) use ($roleMenuIds) {
+                    return in_array($child->id, $roleMenuIds);
+                })->values());
+            });
+        }
 
         return response()->json([
             'status' => 'success',
-            'data' => array_values($filteredMenus)
+            'data' => $menus
         ]);
     }
 
-    private function filterMenus($menus, $user)
+    /**
+     * Get all menus for management (admin view).
+     */
+    public function all()
     {
-        // If user is Administrator, return all menus
-        if ($user->role && $user->role->name === 'Administrator') {
-            return $menus;
-        }
+        $menus = Menu::with('children')->whereNull('parent_id')->orderBy('sort_order')->get();
+        return response()->json(['status' => 'success', 'data' => $menus]);
+    }
 
-        // Get user permission names
-        $userPermissions = $user->role ? $user->role->permissions->pluck('name')->toArray() : [];
+    /**
+     * Create a new menu.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'path' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|exists:menus,id',
+            'sort_order' => 'integer',
+            'platform' => 'in:web,mobile,both',
+            'is_active' => 'boolean',
+        ]);
 
-        $filtered = [];
-        foreach ($menus as $menu) {
-            $hasAccess = true;
+        $menu = Menu::create($validated);
 
-            // Check if menu has permission requirement
-            if (isset($menu['permission'])) {
-                $hasAccess = in_array($menu['permission'], $userPermissions);
-            }
+        return response()->json(['status' => 'success', 'data' => $menu], 201);
+    }
 
-            if ($hasAccess) {
-                // If has children, filter them too
-                if (isset($menu['children']) && !empty($menu['children'])) {
-                    $menu['children'] = $this->filterMenus($menu['children'], $user);
-                    
-                    // If all children were filtered out, hide parent (optional)
-                    // if (empty($menu['children'])) continue;
-                }
-                $filtered[] = $menu;
-            }
-        }
+    /**
+     * Update an existing menu.
+     */
+    public function update(Request $request, $id)
+    {
+        $menu = Menu::findOrFail($id);
 
-        return $filtered;
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'path' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|exists:menus,id',
+            'sort_order' => 'integer',
+            'platform' => 'in:web,mobile,both',
+            'is_active' => 'boolean',
+        ]);
+
+        $menu->update($validated);
+
+        return response()->json(['status' => 'success', 'data' => $menu]);
+    }
+
+    /**
+     * Delete a menu.
+     */
+    public function destroy($id)
+    {
+        $menu = Menu::findOrFail($id);
+        $menu->delete(); // Cascades to children if DB constraint is set
+
+        return response()->json(['status' => 'success', 'message' => 'Menu deleted']);
     }
 }

@@ -156,4 +156,25 @@ class RoleController extends Controller
             'message' => 'Permissions synchronized successfully'
         ]);
     }
+
+    /**
+     * Sync menus for a specific role.
+     */
+    public function syncMenus(Request $request, $id)
+    {
+        $role = Role::findOrFail($id);
+
+        $request->validate([
+            'menu_ids' => 'required|array',
+            'menu_ids.*' => 'exists:menus,id'
+        ]);
+
+        $role->menus()->sync($request->menu_ids);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Menus synchronized successfully',
+            'data' => $role->load('menus')
+        ]);
+    }
 }
