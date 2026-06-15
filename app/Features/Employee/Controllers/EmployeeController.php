@@ -11,7 +11,7 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Employee::with(['user', 'identities']);
+        $query = Employee::with(['user', 'identities.identityType']);
         
         if ($request->has('search')) {
             $search = $request->search;
@@ -25,7 +25,7 @@ class EmployeeController extends Controller
 
     public function show($id)
     {
-        $employee = Employee::with(['user', 'identities'])->findOrFail($id);
+        $employee = Employee::with(['user', 'identities.identityType'])->findOrFail($id);
         return response()->json($employee);
     }
 
@@ -33,18 +33,27 @@ class EmployeeController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id|unique:employees,user_id',
-            'employee_code' => 'required|string|unique:employees,employee_code',
+            'employee_code' => 'nullable|string|unique:employees,employee_code',
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'join_date' => 'nullable|date',
             'identities' => 'nullable|array',
-            'identities.*.identity_type' => 'required|string',
+            'identities.*.identity_type_id' => 'required|exists:identity_types,id',
             'identities.*.identity_number' => 'required|string',
             'identities.*.expiration_date' => 'nullable|date',
             'identities.*.document_path' => 'nullable|string',
         ]);
+
+        if (empty($validated['employee_code'])) {
+            $latest = Employee::withTrashed()->latest('id')->first();
+            $nextNumber = 1;
+            if ($latest && preg_match('/EMP-(\d+)/', $latest->employee_code, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            }
+            $validated['employee_code'] = 'EMP-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        }
 
         DB::beginTransaction();
         try {
@@ -70,7 +79,7 @@ class EmployeeController extends Controller
 
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id|unique:employees,user_id,' . $employee->id,
-            'employee_code' => 'required|string|unique:employees,employee_code,' . $employee->id,
+            'employee_code' => 'nullable|string|unique:employees,employee_code,' . $employee->id,
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
@@ -78,7 +87,7 @@ class EmployeeController extends Controller
             'join_date' => 'nullable|date',
             'identities' => 'nullable|array',
             'identities.*.id' => 'nullable|exists:employee_identities,id',
-            'identities.*.identity_type' => 'required_with:identities|string',
+            'identities.*.identity_type_id' => 'required_with:identities|exists:identity_types,id',
             'identities.*.identity_number' => 'required_with:identities|string',
             'identities.*.expiration_date' => 'nullable|date',
             'identities.*.document_path' => 'nullable|string',

@@ -11,7 +11,7 @@ class EmployeeIdentity extends Model
 
     protected $fillable = [
         'employee_id',
-        'identity_type',
+        'identity_type_id',
         'identity_number',
         'expiration_date',
         'document_path',
@@ -24,5 +24,10 @@ class EmployeeIdentity extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function identityType(): BelongsTo
+    {
+        return $this->belongsTo(IdentityType::class);
     }
 }
