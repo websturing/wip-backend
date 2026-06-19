@@ -41,4 +41,10 @@ class ProfileController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
     }
+
+    public function updatePreferences(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $this->service->updatePreferences($request->all());
+        return response()->json(['message' => 'Preferences updated successfully']);
+    }
 }

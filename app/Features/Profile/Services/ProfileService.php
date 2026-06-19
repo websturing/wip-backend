@@ -31,4 +31,12 @@ class ProfileService
             'password' => Hash::make($newPassword),
         ]);
     }
+
+    public function updatePreferences(array $preferences)
+    {
+        $user = User::find(Auth::id());
+        $currentPreferences = $user->preferences ?? [];
+        $mergedPreferences = array_merge($currentPreferences, $preferences);
+        return $user->update(['preferences' => $mergedPreferences]);
+    }
 }
