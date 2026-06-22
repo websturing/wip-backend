@@ -6,6 +6,8 @@ use App\Features\Reference\Controllers\GlGroupController;
 use App\Features\Reference\Controllers\LotController;
 use App\Features\Reference\Controllers\ImportController;
 use App\Features\Reference\Controllers\GlSummaryController;
+use App\Features\Reference\Controllers\ColorController;
+use App\Features\Reference\Controllers\FabricController;
 
 Route::middleware('permission:reference.read')->group(function() {
     Route::prefix('customers')->group(function () {
@@ -23,6 +25,14 @@ Route::middleware('permission:reference.read')->group(function() {
         Route::get('/', [LotController::class, 'index']);
         Route::get('/list', [LotController::class, 'list']);
         Route::get('/{id}', [LotController::class, 'show']);
+    });
+    
+    Route::prefix('colors')->group(function () {
+        Route::get('/', [ColorController::class, 'index']);
+    });
+    
+    Route::prefix('fabrics')->group(function () {
+        Route::get('/', [FabricController::class, 'index']);
     });
 });
 

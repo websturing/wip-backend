@@ -20,4 +20,14 @@ class GlGroup extends Model
     {
         return $this->hasMany(Lot::class, 'gl_id');
     }
+
+    public function colors()
+    {
+        return $this->hasMany(Color::class, 'gl_id');
+    }
+
+    public function fabrics()
+    {
+        return $this->hasMany(Fabric::class, 'gl_id');
+    }
 }

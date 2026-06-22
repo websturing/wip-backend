@@ -18,7 +18,12 @@ class GlGroupController extends Controller
             ]);
         }
 
-        $query = GlGroup::with(['customer', 'lots']);
+        $query = GlGroup::with([
+            'customer', 
+            'lots', 
+            'colors.aliases', 
+            'fabrics.aliases'
+        ]);
 
         if ($request->has('search') && $request->search != '') {
             $search = $request->search;
@@ -57,7 +62,13 @@ class GlGroupController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data' => GlGroup::with('customer', 'lots')->findOrFail($id)
+            'data' => GlGroup::with([
+                'customer', 
+                'lots.color', 
+                'lots.fabric', 
+                'colors.aliases', 
+                'fabrics.aliases'
+            ])->findOrFail($id)
         ]);
     }
 

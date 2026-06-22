@@ -19,7 +19,9 @@ class Lot extends Model
         'brand',
         'sam',
         'delivery_date',
-        'order_date'
+        'order_date',
+        'color_id',
+        'fabric_id'
     ];
 
     protected static function boot()
@@ -37,6 +39,16 @@ class Lot extends Model
     public function glGroup()
     {
         return $this->belongsTo(GlGroup::class, 'gl_id');
+    }
+
+    public function color()
+    {
+        return $this->belongsTo(Color::class, 'color_id');
+    }
+
+    public function fabric()
+    {
+        return $this->belongsTo(Fabric::class, 'fabric_id');
     }
 
     public function exportQuantity()
