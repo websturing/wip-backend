@@ -36,8 +36,8 @@ class MenuController extends Controller
             $query->whereIn('platform', [$platform, 'both']);
         }
 
-        // If user is Administrator, get all active menus
-        if ($user->role->name === 'Administrator') {
+        // If user is Admin, get all active menus
+        if ($user->role->name === 'Admin') {
             $menus = $query->get();
         } else {
             // Otherwise, get only menus assigned to this role

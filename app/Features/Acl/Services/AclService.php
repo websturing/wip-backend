@@ -49,6 +49,12 @@ class AclService
                 'wip.update' => 'Modify WIP Adjustments',
                 'wip.delete' => 'Clear WIP Records',
             ],
+            'Laying Planning' => [
+                'laying_planning.read' => 'View Laying Planning',
+                'laying_planning.create' => 'Create Laying Planning',
+                'laying_planning.update' => 'Edit Laying Planning',
+                'laying_planning.delete' => 'Delete Laying Planning',
+            ],
             // [AUTO_GEN_MARKER]
         ];
     }
@@ -78,8 +84,8 @@ class AclService
         // Optional: Remove permissions no longer in catalog
         Permission::whereNotIn('name', $validNames)->delete();
 
-        // Auto-assign all permissions to Administrator role
-        $adminRole = Role::where('name', 'Administrator')->first();
+        // Auto-assign all permissions to Admin role
+        $adminRole = Role::where('name', 'Admin')->first();
         if ($adminRole) {
             $adminRole->permissions()->sync(Permission::pluck('id'));
         }

@@ -105,8 +105,8 @@ class RoleController extends Controller
     {
         $role = Role::findOrFail($id);
         
-        if ($role->name === 'Administrator' && $request->name !== 'Administrator') {
-            return response()->json(['message' => 'Cannot rename the Administrator role'], 422);
+        if ($role->name === 'Admin' && $request->name !== 'Admin') {
+            return response()->json(['message' => 'Cannot rename the Admin role'], 422);
         }
 
         $request->validate([
@@ -133,8 +133,8 @@ class RoleController extends Controller
     {
         $role = Role::findOrFail($id);
 
-        if ($role->name === 'Administrator') {
-            return response()->json(['message' => 'Cannot delete the Administrator role'], 422);
+        if ($role->name === 'Admin') {
+            return response()->json(['message' => 'Cannot delete the Admin role'], 422);
         }
 
         // Dissociate users from this role instead of blocking
