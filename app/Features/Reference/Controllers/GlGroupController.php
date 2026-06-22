@@ -8,11 +8,33 @@ use Illuminate\Http\Request;
 
 class GlGroupController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->boolean('flat')) {
+            $lots = \App\Features\Reference\Models\Lot::whereNotNull('lot_code')->pluck('lot_code');
+            return response()->json([
+                'status' => 'success',
+                'data' => $lots
+            ]);
+        }
+
+        $query = GlGroup::with(['customer', 'lots']);
+
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('gl_number', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $perPage = $request->input('per_page', 20);
+
         return response()->json([
             'status' => 'success',
-            'data' => GlGroup::with('customer')->latest()->paginate(20)
+            'data' => $query->latest()->paginate($perPage)
         ]);
     }
 
