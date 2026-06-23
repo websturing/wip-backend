@@ -8,6 +8,7 @@ use App\Features\Reference\Controllers\ImportController;
 use App\Features\Reference\Controllers\GlSummaryController;
 use App\Features\Reference\Controllers\ColorController;
 use App\Features\Reference\Controllers\FabricController;
+use App\Features\Reference\Controllers\SizeController;
 
 Route::middleware('permission:reference.read')->group(function() {
     Route::prefix('customers')->group(function () {
@@ -34,6 +35,11 @@ Route::middleware('permission:reference.read')->group(function() {
     Route::prefix('fabrics')->group(function () {
         Route::get('/', [FabricController::class, 'index']);
     });
+    
+    Route::prefix('sizes')->group(function () {
+        Route::get('/', [SizeController::class, 'index']);
+        Route::get('/{id}', [SizeController::class, 'show']);
+    });
 });
 
 Route::middleware('permission:reference.create')->group(function() {
@@ -41,16 +47,19 @@ Route::middleware('permission:reference.create')->group(function() {
     Route::post('/gl-groups', [GlGroupController::class, 'store']);
     Route::post('/lots', [LotController::class, 'store']);
     Route::post('/import', [ImportController::class, 'upload']);
+    Route::post('/sizes', [SizeController::class, 'store']);
 });
 
 Route::middleware('permission:reference.update')->group(function() {
     Route::put('/customers/{id}', [CustomerController::class, 'update']);
     Route::put('/gl-groups/{id}', [GlGroupController::class, 'update']);
     Route::put('/lots/{id}', [LotController::class, 'update']);
+    Route::put('/sizes/{id}', [SizeController::class, 'update']);
 });
 
 Route::middleware('permission:reference.delete')->group(function() {
     Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
     Route::delete('/gl-groups/{id}', [GlGroupController::class, 'destroy']);
     Route::delete('/lots/{id}', [LotController::class, 'destroy']);
+    Route::delete('/sizes/{id}', [SizeController::class, 'destroy']);
 });
