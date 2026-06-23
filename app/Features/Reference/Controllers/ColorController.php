@@ -20,6 +20,16 @@ class ColorController extends Controller
 
         $query = Color::with(['glGroup', 'aliases']);
 
+        if ($request->has('gl_ids')) {
+            $glIds = $request->input('gl_ids');
+            if (is_string($glIds)) {
+                $glIds = explode(',', $glIds);
+            }
+            if (is_array($glIds) && count($glIds) > 0) {
+                $query->whereIn('gl_id', $glIds);
+            }
+        }
+
         if ($request->has('search') && $request->search != '') {
             $search = $request->search;
             $query->where(function($q) use ($search) {
