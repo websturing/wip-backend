@@ -11,7 +11,8 @@ class GlGroupController extends Controller
     public function index(Request $request)
     {
         if ($request->boolean('flat')) {
-            $lots = \App\Features\Reference\Models\Lot::whereNotNull('lot_code')->pluck('lot_code');
+            $lots = \App\Features\Reference\Models\Lot::whereNotNull('lot_code')->select('id', 'lot_code as name', 'style_no', 'gmt_qty', 'order_date', 'brand', 'delivery_date')
+            ->get();
             return response()->json([
                 'status' => 'success',
                 'data' => $lots
