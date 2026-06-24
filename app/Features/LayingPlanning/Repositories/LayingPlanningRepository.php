@@ -18,6 +18,35 @@ class LayingPlanningRepository
         ])->latest()->get();
     }
 
+    public function paginate(array $filters = [])
+    {
+        $perPage = $filters['per_page'] ?? 20;
+        $search = $filters['search'] ?? null;
+
+        $query = LayingPlanning::with([
+            'layingPlanningType',
+            'lot.glGroup',
+            'color',
+            'fabric',
+            'sizeDetails'
+        ]);
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('serial_number', 'like', "%{$search}%")
+                  ->orWhereHas('lot', function ($sq) use ($search) {
+                      $sq->where('lot_code', 'like', "%{$search}%")
+                        ->orWhere('lot_number', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('color', function ($sq) use ($search) {
+                      $sq->where('standard_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        return $query->latest()->paginate($perPage);
+    }
+
     public function findById(string $id): ?LayingPlanning
     {
         return LayingPlanning::with([

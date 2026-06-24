@@ -8,6 +8,7 @@ use App\Features\LayingPlanning\Requests\CreateLayingPlanningRequest;
 use App\Features\LayingPlanning\Requests\UpdateLayingPlanningRequest;
 use App\Features\LayingPlanning\Resources\LayingPlanningResource;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class LayingPlanningController extends Controller
 {
@@ -18,10 +19,18 @@ class LayingPlanningController extends Controller
         $this->service = $service;
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $data = $this->service->getAll();
-        return response()->json(['status' => 'success', 'data' => LayingPlanningResource::collection($data)]);
+        $paginator = $this->service->paginate($request->all());
+        
+        $paginator->getCollection()->transform(function ($item) {
+            return new LayingPlanningResource($item);
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $paginator
+        ]);
     }
 
     public function store(CreateLayingPlanningRequest $request): JsonResponse

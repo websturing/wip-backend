@@ -24,6 +24,11 @@ class LayingPlanningService
         return $this->repository->getAll();
     }
 
+    public function paginate(array $filters = [])
+    {
+        return $this->repository->paginate($filters);
+    }
+
     public function findById(string $id)
     {
         return $this->repository->findById($id);
