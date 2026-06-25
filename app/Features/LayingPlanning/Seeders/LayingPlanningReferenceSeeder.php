@@ -33,29 +33,29 @@ class LayingPlanningReferenceSeeder extends Seeder
         $colorNavy = Color::firstOrCreate([
             'gl_id' => $glGroup->id,
             'standard_name' => 'Navy Blue',
-            'code' => 'NVY-002'
+            'code' => 'NVY'
         ]);
         ColorAlias::firstOrCreate([
             'color_id' => $colorNavy->id,
             'department' => 'warehouse',
             'alias_name' => 'navy'
         ]);
-
+ 
         $colorWhite = Color::firstOrCreate([
             'gl_id' => $glGroup->id,
             'standard_name' => 'White',
-            'code' => 'WHT-003'
+            'code' => 'WHT'
         ]);
         ColorAlias::firstOrCreate([
             'color_id' => $colorWhite->id,
             'department' => 'warehouse',
             'alias_name' => 'putih'
         ]);
-
+ 
         $colorRed = Color::firstOrCreate([
             'gl_id' => $glGroup->id,
             'standard_name' => 'Red Sport',
-            'code' => 'RED-004'
+            'code' => 'RED'
         ]);
 
         // 3. Seed variative Fabrics

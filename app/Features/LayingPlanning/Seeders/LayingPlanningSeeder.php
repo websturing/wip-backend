@@ -38,9 +38,9 @@ class LayingPlanningSeeder extends Seeder
         $lot03 = Lot::where('lot_number', '03')->firstOrFail();
         $lot04 = Lot::where('lot_number', '04')->firstOrFail();
 
-        $colorNavy = Color::where('code', 'NVY-002')->firstOrFail();
-        $colorWhite = Color::where('code', 'WHT-003')->firstOrFail();
-        $colorRed = Color::where('code', 'RED-004')->firstOrFail();
+        $colorNavy = Color::where('code', 'NVY')->firstOrFail();
+        $colorWhite = Color::where('code', 'WHT')->firstOrFail();
+        $colorRed = Color::where('code', 'RED')->firstOrFail();
 
         $fabricCotton = Fabric::where('standard_content', '100 Cotton Combed 30s')->firstOrFail();
         $fabricNylon = Fabric::where('standard_content', '80 Nylon 20 Elastane')->firstOrFail();
@@ -76,18 +76,19 @@ class LayingPlanningSeeder extends Seeder
 
         // -------------------------------------------------------------
         // MODEL 2: Primary & Secondary (Parent-Child)
-        // -> Parent: Lot 03, Warna White, Bahan Dryfit, Pattern STRIPE
-        // -> Child:  Lot 02, Warna Navy, Bahan Nylon, Pattern SOLID
+        // -> Parent: Lot 02, Warna Navy, Bahan Cotton, Pattern STRIPE (Utama)
+        // -> Child:  Lot 02, Warna White, Bahan Dryfit, Pattern SOLID (Kombinasi/Support)
+        // -> (Menggunakan Lot/GL yang sama namun beda warna, dipotong terpisah)
         // -------------------------------------------------------------
-        $serialPrimary = $service->generateSerialNumber($lot03->id, $colorWhite->id, null);
+        $serialPrimary = $service->generateSerialNumber($lot02->id, $colorNavy->id, null);
         $primary = LayingPlanning::firstOrCreate(
             ['serial_number' => $serialPrimary],
             [
-                'lot_id' => $lot03->id,
+                'lot_id' => $lot02->id,
                 'laying_planning_type_id' => $typeBody->id,
                 'laying_planning_parent_id' => null,
-                'color_id' => $colorWhite->id,
-                'fabric_id' => $fabricDryfit->id,
+                'color_id' => $colorNavy->id,
+                'fabric_id' => $fabricCotton->id,
                 'plan_date' => '2026-07-02',
                 'fabric_pattern' => 'STRIPE',
                 'is_combine' => false,
@@ -98,15 +99,15 @@ class LayingPlanningSeeder extends Seeder
         LayingPlanningSize::firstOrCreate(['laying_planning_id' => $primary->id, 'size_id' => $sizeM->id], ['order_qty' => 200]);
 
         // Secondary / Support planning: ada SUP pada serial_number-nya
-        $serialSecondary = $service->generateSerialNumber($lot02->id, $colorNavy->id, $primary->id);
+        $serialSecondary = $service->generateSerialNumber($lot02->id, $colorWhite->id, $primary->id);
         $secondary = LayingPlanning::firstOrCreate(
             ['serial_number' => $serialSecondary],
             [
                 'lot_id' => $lot02->id,
                 'laying_planning_type_id' => $typeCombinasi->id,
                 'laying_planning_parent_id' => $primary->id,
-                'color_id' => $colorNavy->id,
-                'fabric_id' => $fabricNylon->id,
+                'color_id' => $colorWhite->id,
+                'fabric_id' => $fabricDryfit->id,
                 'plan_date' => '2026-07-02',
                 'fabric_pattern' => 'SOLID',
                 'is_combine' => false,
@@ -191,9 +192,9 @@ class LayingPlanningSeeder extends Seeder
         LayingPlanningPart::firstOrCreate(['laying_planning_id' => $planningSetSingle->id, 'item_part' => 'PANTS'], ['item_part_group_code' => $groupToken1]);
 
         // -------------------------------------------------------------
-        // MODEL 5: Set Item - Planning Terpisah (Top & Pants beda warna/Bahan/Lot)
+        // MODEL 5: Set Item - Planning Terpisah (Beda Warna, tetapi Lot/GL sama)
         // -> TOP:   Lot 03, Warna White, Bahan Dryfit, Pattern STRIPE
-        // -> PANTS: Lot 02, Warna Navy, Bahan Cotton, Pattern SOLID
+        // -> PANTS: Lot 03, Warna Navy, Bahan Cotton, Pattern SOLID
         // -------------------------------------------------------------
         // Planning 1: TOP Baju (Lot 03, White, Dryfit) - Tanggal 5
         $serialSetPart1 = $service->generateSerialNumber($lot03->id, $colorWhite->id, null);
@@ -213,12 +214,12 @@ class LayingPlanningSeeder extends Seeder
         );
         LayingPlanningSize::firstOrCreate(['laying_planning_id' => $planningSetPart1->id, 'size_id' => $sizeM->id], ['order_qty' => 80]);
         
-        // Planning 2: PANTS Celana (Lot 02, Navy, Cotton) - Tanggal 6
-        $serialSetPart2 = $service->generateSerialNumber($lot02->id, $colorNavy->id, null);
+        // Planning 2: PANTS Celana (Lot 03, Navy, Cotton) - Tanggal 6
+        $serialSetPart2 = $service->generateSerialNumber($lot03->id, $colorNavy->id, null);
         $planningSetPart2 = LayingPlanning::firstOrCreate(
             ['serial_number' => $serialSetPart2],
             [
-                'lot_id' => $lot02->id,
+                'lot_id' => $lot03->id,
                 'laying_planning_type_id' => $typeBody->id,
                 'laying_planning_parent_id' => null,
                 'color_id' => $colorNavy->id,
