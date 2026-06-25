@@ -9,7 +9,7 @@ class LayingPlanningSizeResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $full = $request->boolean('layingPlanningSize');
+        $full = $request->boolean('layingPlanningSizes');
 
         return $full ? [
             'id'        => $this->pivot->id ?? $this->id,

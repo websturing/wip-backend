@@ -35,8 +35,12 @@ class LayingPlanningController extends Controller
 
     public function store(CreateLayingPlanningRequest $request): JsonResponse
     {
-        $data = $this->service->create($request->validated());
-        return response()->json(['status' => 'success', 'data' => new LayingPlanningResource($data)], 201);
+        $data = $this->service->createBulk($request->validated());
+
+        return response()->json([
+            'status' => 'success',
+            'data' => LayingPlanningResource::collection($data),
+        ], 201);
     }
 
     public function show($id): JsonResponse
@@ -51,15 +55,20 @@ class LayingPlanningController extends Controller
         ]);
     }
 
-    public function update(UpdateLayingPlanningRequest $request, $id): JsonResponse
+    public function update(UpdateLayingPlanningRequest $request): JsonResponse
     {
-        $updated = $this->service->update($id, $request->validated());
+        $data = $request->validated();
+        $updated = $this->service->updateBulk($data);
         if (!$updated) {
             return response()->json(['status' => 'error', 'message' => 'Failed to update'], 400);
         }
+
+        $ids = collect($data)->pluck('id')->toArray();
+        $updatedPlannings = collect($ids)->map(fn($id) => $this->service->findById($id));
+
         return response()->json([
             'status' => 'success',
-            'data'   => new LayingPlanningResource($this->service->findById($id)),
+            'data'   => LayingPlanningResource::collection($updatedPlannings),
         ]);
     }
 

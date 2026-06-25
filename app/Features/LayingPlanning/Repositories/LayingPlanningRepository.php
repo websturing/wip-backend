@@ -14,21 +14,25 @@ class LayingPlanningRepository
             'lot.glGroup',
             'color',
             'fabric',
-            'sizeDetails'
-        ])->latest()->get();
+            'sizeDetails',
+            'parts'
+        ])->latest()->orderBy('id', 'desc')->get();
     }
 
     public function paginate(array $filters = [])
     {
         $perPage = $filters['per_page'] ?? 20;
         $search = $filters['search'] ?? null;
+        $order = isset($filters['order']) && strtolower($filters['order']) === 'asc' ? 'asc' : 'desc';
 
         $query = LayingPlanning::with([
             'layingPlanningType',
             'lot.glGroup',
             'color',
             'fabric',
-            'sizeDetails'
+            'sizeDetails',
+            'combineGroup',
+            'parts'
         ]);
 
         if (!empty($search)) {
@@ -44,7 +48,11 @@ class LayingPlanningRepository
             });
         }
 
-        return $query->latest()->paginate($perPage);
+        if ($order === 'asc') {
+            return $query->orderBy('created_at', 'asc')->orderBy('id', 'asc')->paginate($perPage);
+        }
+
+        return $query->latest()->orderBy('id', 'desc')->paginate($perPage);
     }
 
     public function findById(string $id): ?LayingPlanning
@@ -56,7 +64,9 @@ class LayingPlanningRepository
             'fabric',
             'sizeDetails',
             'parent',
-            'children'
+            'children',
+            'combineGroup',
+            'parts'
         ])->find($id);
     }
 

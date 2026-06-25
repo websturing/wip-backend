@@ -14,10 +14,44 @@ class LayingPlanningResource extends JsonResource
             'serial_number'  => $this->serial_number,
             'plan_date'      => $this->plan_date?->toDateString(),
             'fabric_pattern' => $this->fabric_pattern,
+
+            // --- Structure / Parent-Child Hierarchy ---
+            'planning_type'             => $this->whenLoaded('layingPlanningType', fn() => $this->layingPlanningType->type),
+            'laying_planning_parent_id' => $this->laying_planning_parent_id,
+            'parent'                    => $this->whenLoaded('parent', fn() => $this->parent ? [
+                'id'            => $this->parent->id,
+                'serial_number' => $this->parent->serial_number,
+            ] : null),
+            'children'                  => $this->whenLoaded('children', fn() =>
+                $this->children->map(fn($child) => [
+                    'id'            => $child->id,
+                    'serial_number' => $child->serial_number,
+                ])
+            ),
+
+            // --- Combine Group ---
             'is_combine'     => $this->is_combine,
+            'combine_number' => $this->relationLoaded('combineGroup') && $this->combineGroup ? $this->combineGroup->combine_number : null,
+            'combine_group'  => $this->when(
+                ($request->boolean('layingPlanningCombine') || $request->boolean('layingPlanningCombines')) && $this->relationLoaded('combineGroup'),
+                fn() => $this->combineGroup ? [
+                    'id'             => $this->combineGroup->id,
+                    'combine_number' => $this->combineGroup->combine_number,
+                    'remarks'        => $this->combineGroup->remarks,
+                ] : null
+            ),
+
+            // --- Set Item ---
+            'is_set_item'    => $this->is_set_item,
+            'parts'          => $this->whenLoaded('parts', fn() =>
+                $this->parts->map(fn($part) => [
+                    'id'                   => $part->id,
+                    'item_part'            => $part->item_part,
+                    'item_part_group_code' => $part->item_part_group_code,
+                ])
+            ),
 
             // --- Flat fields: selalu tampil ---
-            'planning_type'  => $this->whenLoaded('layingPlanningType', fn() => $this->layingPlanningType->type),
             'lot_code'       => $this->whenLoaded('lot', fn() => $this->lot->lot_code),
             'color_name'     => $this->whenLoaded('color', fn() => $this->color->standard_name),
             'fabric_content' => $this->whenLoaded('fabric', fn() => $this->fabric->standard_content),
@@ -69,20 +103,6 @@ class LayingPlanningResource extends JsonResource
             // --- Sizes (via sizeDetails pivot) ---
             'sizes' => $this->whenLoaded('sizeDetails', fn() =>
                 LayingPlanningSizeResource::collection($this->sizeDetails)
-            ),
-
-            // --- Parent reference (jika secondary planning) ---
-            'parent' => $this->whenLoaded('parent', fn() => $this->parent ? [
-                'id'            => $this->parent->id,
-                'serial_number' => $this->parent->serial_number,
-            ] : null),
-
-            // --- Children (jika primary planning punya secondary) ---
-            'children' => $this->whenLoaded('children', fn() =>
-                $this->children->map(fn($child) => [
-                    'id'            => $child->id,
-                    'serial_number' => $child->serial_number,
-                ])
             ),
 
             // --- Timestamps ---

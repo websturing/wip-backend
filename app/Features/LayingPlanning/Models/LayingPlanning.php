@@ -29,10 +29,13 @@ class LayingPlanning extends Model
         'plan_date',
         'fabric_pattern',
         'is_combine',
+        'laying_planning_combine_id',
+        'is_set_item',
     ];
 
     protected $casts = [
         'is_combine' => 'boolean',
+        'is_set_item' => 'boolean',
         'plan_date' => 'date',
     ];
 
@@ -100,6 +103,22 @@ class LayingPlanning extends Model
         return $this->belongsToMany(Size::class, 'laying_planning_sizes', 'laying_planning_id', 'size_id')
             ->withPivot('id', 'order_qty')
             ->withTimestamps();
+    }
+
+    /**
+     * Get the combine group associated with this planning.
+     */
+    public function combineGroup(): BelongsTo
+    {
+        return $this->belongsTo(LayingPlanningCombine::class, 'laying_planning_combine_id');
+    }
+
+    /**
+     * Get the parts associated with this planning.
+     */
+    public function parts(): HasMany
+    {
+        return $this->hasMany(LayingPlanningPart::class, 'laying_planning_id');
     }
 }
 

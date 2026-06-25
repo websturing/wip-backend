@@ -13,7 +13,7 @@ Route::middleware('permission:laying_planning.create')->group(function() {
 });
 
 Route::middleware('permission:laying_planning.update')->group(function() {
-    Route::put('/{id}', [LayingPlanningController::class, 'update']);
+    Route::put('/', [LayingPlanningController::class, 'update']);
 });
 
 Route::middleware('permission:laying_planning.delete')->group(function() {

@@ -32,8 +32,9 @@ class DatabaseSeeder extends Seeder
 
         // 6. Setup Color, Fabric & Lot reference data
         $this->call(\Database\Seeders\ColorFabricSeeder::class);
-
+        
         // 7. Setup Laying Planning sample data
+        $this->call(\App\Features\LayingPlanning\Seeders\LayingPlanningReferenceSeeder::class);
         $this->call(\App\Features\LayingPlanning\Seeders\LayingPlanningSeeder::class);
     }
 }
