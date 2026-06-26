@@ -12,7 +12,9 @@ class LotController extends Controller
     {
         $lastImport = Lot::max('updated_at');
         
-        $query = Lot::with('glGroup.customer')->latest();
+        $query = Lot::with('glGroup.customer')
+                    ->withSum('layingPlanningSizes', 'order_qty')
+                    ->latest();
 
         if ($request->has('search')) {
             $search = $request->search;

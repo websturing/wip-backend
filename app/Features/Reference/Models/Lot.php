@@ -55,4 +55,16 @@ class Lot extends Model
     {
         return $this->hasOne(\App\Features\Wip\Models\WipExportQuantity::class, 'lot_id');
     }
+
+    public function layingPlanningSizes()
+    {
+        return $this->hasManyThrough(
+            \App\Features\LayingPlanning\Models\LayingPlanningSize::class,
+            \App\Features\LayingPlanning\Models\LayingPlanning::class,
+            'lot_id',
+            'laying_planning_id',
+            'id',
+            'id'
+        );
+    }
 }
