@@ -50,6 +50,13 @@ class LayingPlanningResource extends JsonResource
                     'item_part_group_code' => $part->item_part_group_code,
                 ])
             ),
+            'group_parts'    => $this->whenLoaded('groupParts', fn() =>
+                $this->groupParts->map(fn($gp) => [
+                    'id'                 => $gp->id,
+                    'item_part'          => $gp->item_part,
+                    'laying_planning_id' => $gp->laying_planning_id,
+                ])
+            ),
 
             // --- Flat fields: selalu tampil ---
             'lot_code'       => $this->whenLoaded('lot', fn() => $this->lot->lot_code),

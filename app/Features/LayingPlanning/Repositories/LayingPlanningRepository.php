@@ -3,6 +3,7 @@
 namespace App\Features\LayingPlanning\Repositories;
 
 use App\Features\LayingPlanning\Models\LayingPlanning;
+use App\Features\LayingPlanning\Models\LayingPlanningPart;
 use Illuminate\Support\Collection;
 
 class LayingPlanningRepository
@@ -57,7 +58,7 @@ class LayingPlanningRepository
 
     public function findById(string $id): ?LayingPlanning
     {
-        return LayingPlanning::with([
+        $layingPlanning = LayingPlanning::with([
             'layingPlanningType',
             'lot.glGroup',
             'color',
@@ -68,6 +69,19 @@ class LayingPlanningRepository
             'combineGroup',
             'parts'
         ])->find($id);
+
+        if ($layingPlanning) {
+            $groupCodes = $layingPlanning->parts->pluck('item_part_group_code')->filter()->unique();
+            if ($groupCodes->isNotEmpty()) {
+                $groupParts = LayingPlanningPart::whereIn('item_part_group_code', $groupCodes)
+                    ->get();
+                $layingPlanning->setRelation('groupParts', $groupParts);
+            } else {
+                $layingPlanning->setRelation('groupParts', collect());
+            }
+        }
+
+        return $layingPlanning;
     }
 
     public function create(array $data): LayingPlanning
