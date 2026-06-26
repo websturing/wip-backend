@@ -103,14 +103,17 @@ class LayingPlanningService
             ]);
         }
 
-        // 6. Hubungkan detail parts jika is_set_item bernilai true
-        if (!empty($parts) && ($layingPlanning->is_set_item ?? false)) {
-            $defaultGrouping = (string) Str::uuid();
+        // 6. Hubungkan detail parts jika ada
+        if (!empty($parts)) {
+            $isSetItem = (bool) ($layingPlanning->is_set_item ?? false);
+            $defaultGrouping = $isSetItem ? (string) Str::uuid() : null;
             foreach ($parts as $part) {
                 LayingPlanningPart::create([
                     'laying_planning_id'   => $layingPlanning->id,
                     'item_part'            => $part['item_part'],
-                    'item_part_group_code' => !empty($part['item_part_group_code']) ? $part['item_part_group_code'] : $defaultGrouping,
+                    'item_part_group_code' => $isSetItem 
+                        ? (!empty($part['item_part_group_code']) ? $part['item_part_group_code'] : $defaultGrouping)
+                        : null,
                 ]);
             }
         }
@@ -251,22 +254,24 @@ class LayingPlanningService
                 }
             }
 
-            // Sync parts jika is_set_item true
-            if ($layingPlanning->is_set_item) {
-                if ($parts !== null) {
-                    LayingPlanningPart::where('laying_planning_id', $id)->delete();
-                    $defaultGrouping = (string) Str::uuid();
-                    foreach ($parts as $part) {
-                        LayingPlanningPart::create([
-                            'laying_planning_id'   => $id,
-                            'item_part'            => $part['item_part'],
-                            'item_part_group_code' => !empty($part['item_part_group_code']) ? $part['item_part_group_code'] : $defaultGrouping,
-                        ]);
-                    }
-                }
-            } else {
-                // Jika bukan set item, hapus parts yang mungkin ada sebelumnya
+            // Sync parts jika dikirimkan di payload
+            if ($parts !== null) {
                 LayingPlanningPart::where('laying_planning_id', $id)->delete();
+                $isSetItem = (bool) ($layingPlanning->is_set_item ?? false);
+                $defaultGrouping = $isSetItem ? (string) Str::uuid() : null;
+                foreach ($parts as $part) {
+                    LayingPlanningPart::create([
+                        'laying_planning_id'   => $id,
+                        'item_part'            => $part['item_part'],
+                        'item_part_group_code' => $isSetItem 
+                            ? (!empty($part['item_part_group_code']) ? $part['item_part_group_code'] : $defaultGrouping)
+                            : null,
+                    ]);
+                }
+            } elseif (!$layingPlanning->is_set_item) {
+                // Jika $parts tidak dikirim di payload, tapi is_set_item diubah/bernilai false,
+                // pastikan semua part yang ada diubah group_code-nya menjadi null.
+                LayingPlanningPart::where('laying_planning_id', $id)->update(['item_part_group_code' => null]);
             }
 
             return true;
