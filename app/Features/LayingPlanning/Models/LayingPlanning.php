@@ -120,6 +120,14 @@ class LayingPlanning extends Model
     {
         return $this->hasMany(LayingPlanningPart::class, 'laying_planning_id');
     }
+
+    /**
+     * Get the details associated with this planning.
+     */
+    public function details(): HasMany
+    {
+        return $this->hasMany(LayingPlanningDetail::class, 'laying_planning_id');
+    }
 }
 
 

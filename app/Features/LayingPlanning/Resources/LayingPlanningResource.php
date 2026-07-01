@@ -112,6 +112,11 @@ class LayingPlanningResource extends JsonResource
                 LayingPlanningSizeResource::collection($this->sizeDetails)
             ),
 
+            // --- Details (laying planning detail items) ---
+            'details' => $this->whenLoaded('details', fn() =>
+                LayingPlanningDetailResource::collection($this->details)
+            ),
+
             // --- Timestamps ---
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

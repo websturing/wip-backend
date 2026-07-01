@@ -34,7 +34,6 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\ColorFabricSeeder::class);
         
         // 7. Setup Laying Planning sample data
-        $this->call(\App\Features\LayingPlanning\Seeders\LayingPlanningReferenceSeeder::class);
-        $this->call(\App\Features\LayingPlanning\Seeders\LayingPlanningSeeder::class);
+        $this->call(\App\Features\LayingPlanning\Seeders\LayingPlanningFeatureSeeder::class);
     }
 }

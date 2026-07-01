@@ -67,7 +67,9 @@ class LayingPlanningRepository
             'parent',
             'children',
             'combineGroup',
-            'parts'
+            'parts',
+            'details.sizes.size',
+            'details.type',
         ])->find($id);
 
         if ($layingPlanning) {
