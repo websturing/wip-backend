@@ -9,6 +9,8 @@ use App\Features\LayingPlanning\Models\LayingPlanningCombine;
 use App\Features\LayingPlanning\Models\LayingPlanningPart;
 use App\Features\Reference\Models\Lot;
 use App\Features\Reference\Models\Color;
+use App\Features\Reference\Models\ColorAlias;
+use App\Features\Reference\Models\FabricAlias;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
@@ -83,18 +85,38 @@ class LayingPlanningService
             $data['laying_planning_parent_id'] ?? null
         );
 
-        // 2. Ambil list sizes dari data dan hapus dari parameter create utama
+        // 2. Ambil color_alias dan fabric_alias dari data dan hapus dari parameter create utama
+        $colorAlias = $data['color_alias'] ?? null;
+        unset($data['color_alias']);
+        $fabricAlias = $data['fabric_alias'] ?? null;
+        unset($data['fabric_alias']);
+
+        // 3. Ambil list sizes dari data dan hapus dari parameter create utama
         $sizes = $data['sizes'] ?? [];
         unset($data['sizes']);
 
-        // 3. Ambil list parts dari data dan hapus dari parameter create utama
+        // 4. Ambil list parts dari data dan hapus dari parameter create utama
         $parts = $data['parts'] ?? [];
         unset($data['parts']);
 
-        // 4. Simpan Laying Planning utama
+        // 5. Simpan Laying Planning utama
         $layingPlanning = $this->repository->create($data);
 
-        // 5. Hubungkan detail sizes ke database
+        // 6. Upsert color alias dan fabric alias
+        if ($colorAlias) {
+            ColorAlias::updateOrCreate(
+                ['color_id' => $data['color_id'], 'department' => 'cutting'],
+                ['alias_name' => $colorAlias],
+            );
+        }
+        if ($fabricAlias) {
+            FabricAlias::updateOrCreate(
+                ['fabric_id' => $data['fabric_id'], 'department' => 'cutting'],
+                ['alias_content' => $fabricAlias],
+            );
+        }
+
+        // 7. Hubungkan detail sizes ke database
         foreach ($sizes as $size) {
             LayingPlanningSize::create([
                 'laying_planning_id' => $layingPlanning->id,
@@ -103,7 +125,7 @@ class LayingPlanningService
             ]);
         }
 
-        // 6. Hubungkan detail parts jika ada
+        // 8. Hubungkan detail parts jika ada
         if (!empty($parts)) {
             $isSetItem = (bool) ($layingPlanning->is_set_item ?? false);
             $defaultGrouping = $isSetItem ? (string) Str::uuid() : null;
@@ -118,7 +140,7 @@ class LayingPlanningService
             }
         }
 
-        // 7. Kembalikan data lengkap beserta relasinya
+        // 9. Kembalikan data lengkap beserta relasinya
         return $this->repository->findById($layingPlanning->id);
     }
 
@@ -197,6 +219,18 @@ class LayingPlanningService
     public function updateSingle(string $id, array $data): bool
     {
         return DB::transaction(function () use ($id, $data) {
+            // Ambil color_alias dan fabric_alias jika dikirimkan
+            $colorAlias = null;
+            if (array_key_exists('color_alias', $data)) {
+                $colorAlias = $data['color_alias'];
+                unset($data['color_alias']);
+            }
+            $fabricAlias = null;
+            if (array_key_exists('fabric_alias', $data)) {
+                $fabricAlias = $data['fabric_alias'];
+                unset($data['fabric_alias']);
+            }
+
             // Ambil sizes jika dikirimkan
             $sizes = null;
             if (array_key_exists('sizes', $data)) {
@@ -269,9 +303,27 @@ class LayingPlanningService
                     ]);
                 }
             } elseif (!$layingPlanning->is_set_item) {
-                // Jika $parts tidak dikirim di payload, tapi is_set_item diubah/bernilai false,
-                // pastikan semua part yang ada diubah group_code-nya menjadi null.
+                // Jika $parts tidak dikirim di payload tapi is_set_item false,
+                // pertahankan data parts, ubah item_part_group_code menjadi null.
                 LayingPlanningPart::where('laying_planning_id', $id)->update(['item_part_group_code' => null]);
+            }
+
+            // Sync color alias — upsert ke tabel color_aliases
+            if ($colorAlias !== null && $colorAlias) {
+                $colorId = $data['color_id'] ?? $layingPlanning->color_id;
+                ColorAlias::updateOrCreate(
+                    ['color_id' => $colorId, 'department' => 'cutting'],
+                    ['alias_name' => $colorAlias],
+                );
+            }
+
+            // Sync fabric alias — upsert ke tabel fabric_aliases
+            if ($fabricAlias !== null && $fabricAlias) {
+                $fabricId = $data['fabric_id'] ?? $layingPlanning->fabric_id;
+                FabricAlias::updateOrCreate(
+                    ['fabric_id' => $fabricId, 'department' => 'cutting'],
+                    ['alias_content' => $fabricAlias],
+                );
             }
 
             return true;

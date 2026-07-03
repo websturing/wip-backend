@@ -16,6 +16,8 @@ class UpdateLayingPlanningRequest extends FormRequest
         return [
             '*.id' => ['required', 'uuid', 'exists:laying_plannings,id'],
             '*.po_number' => ['sometimes', 'nullable', 'string', 'max:255'],
+            '*.color_alias' => ['sometimes', 'nullable', 'string', 'max:255'],
+            '*.fabric_alias' => ['sometimes', 'nullable', 'string', 'max:255'],
             '*.lot_id' => ['sometimes', 'required', 'uuid', 'exists:lots,id'],
             '*.laying_planning_type_id' => ['sometimes', 'required', 'uuid', 'exists:laying_planning_types,id'],
             '*.laying_planning_parent_id' => ['sometimes', 'nullable', 'uuid', 'exists:laying_plannings,id'],

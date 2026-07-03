@@ -34,7 +34,7 @@ class LayingPlanningResource extends JsonResource
             'is_combine'     => $this->is_combine,
             'combine_number' => $this->relationLoaded('combineGroup') && $this->combineGroup ? $this->combineGroup->combine_number : null,
             'combine_group'  => $this->when(
-                ($request->boolean('layingPlanningCombine') || $request->boolean('layingPlanningCombines')) && $this->relationLoaded('combineGroup'),
+                $request->boolean('layingPlanningCombine') && $this->relationLoaded('combineGroup'),
                 fn() => $this->combineGroup ? [
                     'id'             => $this->combineGroup->id,
                     'combine_number' => $this->combineGroup->combine_number,
@@ -97,6 +97,13 @@ class LayingPlanningResource extends JsonResource
                     'id'            => $this->color->id,
                     'code'          => $this->color->code,
                     'standard_name' => $this->color->standard_name,
+                    'aliases'       => $this->color->relationLoaded('aliases')
+                        ? $this->color->aliases->map(fn($a) => [
+                            'id'          => $a->id,
+                            'alias_name'  => $a->alias_name,
+                            'department'  => $a->department,
+                        ])
+                        : [],
                 ]
             ),
 
@@ -105,6 +112,13 @@ class LayingPlanningResource extends JsonResource
                 fn() => [
                     'id'               => $this->fabric->id,
                     'standard_content' => $this->fabric->standard_content,
+                    'aliases'          => $this->fabric->relationLoaded('aliases')
+                        ? $this->fabric->aliases->map(fn($a) => [
+                            'id'             => $a->id,
+                            'alias_content'  => $a->alias_content,
+                            'department'     => $a->department,
+                        ])
+                        : [],
                 ]
             ),
 

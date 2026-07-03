@@ -13,8 +13,8 @@ class LayingPlanningRepository
         return LayingPlanning::with([
             'layingPlanningType',
             'lot.glGroup',
-            'color',
-            'fabric',
+            'color.aliases',
+            'fabric.aliases',
             'sizeDetails',
             'parts'
         ])->latest()->orderBy('id', 'desc')->get();
@@ -29,8 +29,8 @@ class LayingPlanningRepository
         $query = LayingPlanning::with([
             'layingPlanningType',
             'lot.glGroup',
-            'color',
-            'fabric',
+            'color.aliases',
+            'fabric.aliases',
             'sizeDetails',
             'combineGroup',
             'parts'
@@ -61,8 +61,8 @@ class LayingPlanningRepository
         $layingPlanning = LayingPlanning::with([
             'layingPlanningType',
             'lot.glGroup',
-            'color',
-            'fabric',
+            'color.aliases',
+            'fabric.aliases',
             'sizeDetails',
             'parent',
             'children',
