@@ -56,6 +56,7 @@ Route::middleware('permission:laying_planning.read')->group(function() {
 
 Route::middleware('permission:laying_planning.create')->group(function() {
     Route::post('/{lpId}/details', [LayingPlanningDetailController::class, 'store']);
+    Route::post('/{lpId}/details/{detailId}/duplicate', [LayingPlanningDetailController::class, 'duplicate']);
 });
 
 Route::middleware('permission:laying_planning.update')->group(function() {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Features\LayingPlanning\Services\LayingPlanningDetailService;
 use App\Features\LayingPlanning\Requests\CreateLayingPlanningDetailRequest;
 use App\Features\LayingPlanning\Requests\UpdateLayingPlanningDetailRequest;
+use App\Features\LayingPlanning\Requests\DuplicateLayingPlanningDetailRequest;
 use App\Features\LayingPlanning\Resources\LayingPlanningDetailResource;
 use Illuminate\Http\JsonResponse;
 
@@ -71,6 +72,22 @@ class LayingPlanningDetailController extends Controller
             'status' => 'success',
             'data' => new LayingPlanningDetailResource($data),
         ]);
+    }
+
+    public function duplicate(DuplicateLayingPlanningDetailRequest $request, $lpId, $detailId): JsonResponse
+    {
+        $count = $request->validated()['count'];
+
+        $data = $this->service->duplicate($lpId, $detailId, $count);
+
+        if ($data->isEmpty()) {
+            return response()->json(['status' => 'error', 'message' => 'Not Found'], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => LayingPlanningDetailResource::collection($data),
+        ], 201);
     }
 
     public function destroy($lpId, $detailId): JsonResponse

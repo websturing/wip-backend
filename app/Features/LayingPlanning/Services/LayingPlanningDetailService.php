@@ -11,6 +11,8 @@ use Illuminate\Support\Collection;
 
 class LayingPlanningDetailService
 {
+    const MAX_DUPLICATE_COUNT = 10;
+
     protected LayingPlanningDetailRepository $repository;
 
     public function __construct(LayingPlanningDetailRepository $repository)
@@ -108,6 +110,49 @@ class LayingPlanningDetailService
             }
 
             return true;
+        });
+    }
+
+    public function duplicate(string $layingPlanningId, string $detailId, int $count): Collection
+    {
+        $source = $this->findById($detailId);
+
+        if (!$source || $source->laying_planning_id !== $layingPlanningId) {
+            return collect();
+        }
+
+        $sizes = $source->sizes;
+
+        return DB::transaction(function () use ($layingPlanningId, $source, $sizes, $count) {
+            $created = [];
+
+            for ($i = 0; $i < $count; $i++) {
+                $detail = $this->repository->create([
+                    'laying_planning_id' => $layingPlanningId,
+                    'laying_planning_detail_type_id' => $source->laying_planning_detail_type_id,
+                    'table_number' => $this->generateNextTableNumber($layingPlanningId),
+                    'layer_qty' => $source->layer_qty,
+                    'marker_code' => $source->marker_code,
+                    'marker_yard' => $source->marker_yard,
+                    'marker_inch' => $source->marker_inch,
+                    'allowance_inch' => $source->allowance_inch,
+                    'is_pilot_run' => false,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
+
+                foreach ($sizes as $size) {
+                    LayingPlanningDetailSize::create([
+                        'laying_planning_detail_id' => $detail->id,
+                        'size_id' => $size->size_id,
+                        'ratio_per_size' => $size->ratio_per_size,
+                    ]);
+                }
+
+                $created[] = $this->repository->findById($detail->id);
+            }
+
+            return collect($created);
         });
     }
 
