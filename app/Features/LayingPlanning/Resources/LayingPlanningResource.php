@@ -12,6 +12,7 @@ class LayingPlanningResource extends JsonResource
         return [
             'id'             => $this->id,
             'serial_number'  => $this->serial_number,
+            'po_number'      => $this->po_number,
             'plan_date'      => $this->plan_date?->toDateString(),
             'fabric_pattern' => $this->fabric_pattern,
 

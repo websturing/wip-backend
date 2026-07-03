@@ -21,6 +21,7 @@ class LayingPlanning extends Model
 
     protected $fillable = [
         'serial_number',
+        'po_number',
         'lot_id',
         'laying_planning_type_id',
         'laying_planning_parent_id',

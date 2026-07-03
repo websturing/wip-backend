@@ -14,6 +14,7 @@ class CreateLayingPlanningRequest extends FormRequest
     public function rules(): array
     {
         return [
+            '*.po_number' => ['nullable', 'string', 'max:255'],
             '*.lot_id' => ['required', 'uuid', 'exists:lots,id'],
             '*.laying_planning_type_id' => ['required', 'uuid', 'exists:laying_planning_types,id'],
             '*.laying_planning_parent_id' => ['nullable', 'uuid', 'exists:laying_plannings,id'],
