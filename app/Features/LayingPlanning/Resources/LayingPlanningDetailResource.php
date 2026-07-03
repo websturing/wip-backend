@@ -35,6 +35,23 @@ class LayingPlanningDetailResource extends JsonResource
                     'size_name' => $size->relationLoaded('size') ? $size->size?->size : null,
                 ])
             ),
+            'materials' => $this->whenLoaded('materials', fn() =>
+                $this->materials->map(fn($mat) => [
+                    'id' => $mat->id,
+                    'laying_planning_detail_type_id' => $mat->laying_planning_detail_type_id,
+                    'value_per_layer' => $mat->value_per_layer,
+                    'unit' => $mat->unit,
+                    'color_id' => $mat->color_id,
+                    'fabric_id' => $mat->fabric_id,
+                    'properties' => $mat->properties,
+                    'type' => $mat->relationLoaded('type') ? [
+                        'id' => $mat->type?->id,
+                        'detail_type' => $mat->type?->detail_type,
+                    ] : null,
+                    'color_name' => $mat->relationLoaded('color') ? $mat->color?->standard_name : null,
+                    'fabric_content' => $mat->relationLoaded('fabric') ? $mat->fabric?->standard_content : null,
+                ])
+            ),
             'created_by' => $this->whenLoaded('createdBy', fn() => [
                 'id' => $this->createdBy->id,
                 'name' => $this->createdBy->name,

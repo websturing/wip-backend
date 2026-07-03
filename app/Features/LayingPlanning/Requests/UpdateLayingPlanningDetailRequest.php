@@ -24,6 +24,13 @@ class UpdateLayingPlanningDetailRequest extends FormRequest
             'sizes' => ['sometimes', 'required', 'array', 'min:1'],
             'sizes.*.size_id' => ['required_with:sizes', 'uuid', 'exists:sizes,id'],
             'sizes.*.ratio_per_size' => ['required_with:sizes', 'integer', 'min:1'],
+            'materials' => ['sometimes', 'array'],
+            'materials.*.laying_planning_detail_type_id' => ['required_with:materials', 'uuid', 'exists:laying_planning_detail_types,id'],
+            'materials.*.value_per_layer' => ['required_with:materials', 'numeric', 'min:0'],
+            'materials.*.unit' => ['required_with:materials', 'string', 'max:50'],
+            'materials.*.color_id' => ['nullable', 'uuid', 'exists:colors,id'],
+            'materials.*.fabric_id' => ['nullable', 'uuid', 'exists:fabrics,id'],
+            'materials.*.properties' => ['nullable', 'json'],
         ];
     }
 }

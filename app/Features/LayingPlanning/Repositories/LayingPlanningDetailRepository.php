@@ -9,7 +9,7 @@ class LayingPlanningDetailRepository
 {
     public function getAllByLayingPlanning(string $layingPlanningId): Collection
     {
-        return LayingPlanningDetail::with(['sizes.size', 'type', 'createdBy', 'updatedBy'])
+        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy'])
             ->where('laying_planning_id', $layingPlanningId)
             ->orderBy('table_number')
             ->get();
@@ -17,13 +17,13 @@ class LayingPlanningDetailRepository
 
     public function findById(string $id): ?LayingPlanningDetail
     {
-        return LayingPlanningDetail::with(['sizes.size', 'type', 'createdBy', 'updatedBy'])
+        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy'])
             ->find($id);
     }
 
     public function findByIdAndLp(string $id, string $layingPlanningId): ?LayingPlanningDetail
     {
-        return LayingPlanningDetail::with(['sizes.size', 'type', 'createdBy', 'updatedBy'])
+        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy'])
             ->where('laying_planning_id', $layingPlanningId)
             ->find($id);
     }

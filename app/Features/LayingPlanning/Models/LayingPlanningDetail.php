@@ -62,6 +62,11 @@ class LayingPlanningDetail extends Model
         return $this->hasMany(LayingPlanningDetailSize::class, 'laying_planning_detail_id');
     }
 
+    public function materials(): HasMany
+    {
+        return $this->hasMany(LayingPlanningDetailMaterial::class, 'laying_planning_detail_id');
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

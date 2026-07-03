@@ -5,6 +5,7 @@ namespace App\Features\LayingPlanning\Services;
 use App\Features\LayingPlanning\Repositories\LayingPlanningDetailRepository;
 use App\Features\LayingPlanning\Models\LayingPlanningDetail;
 use App\Features\LayingPlanning\Models\LayingPlanningDetailSize;
+use App\Features\LayingPlanning\Models\LayingPlanningDetailMaterial;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
@@ -36,6 +37,9 @@ class LayingPlanningDetailService
             $sizes = $data['sizes'] ?? [];
             unset($data['sizes']);
 
+            $materials = $data['materials'] ?? [];
+            unset($data['materials']);
+
             $data['laying_planning_id'] = $layingPlanningId;
             $data['table_number'] = $this->generateNextTableNumber($layingPlanningId);
             $data['created_by'] = Auth::id();
@@ -48,6 +52,20 @@ class LayingPlanningDetailService
                     'laying_planning_detail_id' => $detail->id,
                     'size_id' => $size['size_id'],
                     'ratio_per_size' => $size['ratio_per_size'],
+                ]);
+            }
+
+            foreach ($materials as $material) {
+                LayingPlanningDetailMaterial::create([
+                    'laying_planning_detail_id' => $detail->id,
+                    'laying_planning_detail_type_id' => $material['laying_planning_detail_type_id'],
+                    'value_per_layer' => $material['value_per_layer'],
+                    'unit' => $material['unit'],
+                    'color_id' => $material['color_id'] ?? null,
+                    'fabric_id' => $material['fabric_id'] ?? null,
+                    'properties' => $material['properties'] ?? null,
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                 ]);
             }
 
@@ -70,6 +88,12 @@ class LayingPlanningDetailService
             if (array_key_exists('sizes', $data)) {
                 $sizes = $data['sizes'];
                 unset($data['sizes']);
+            }
+
+            $materials = null;
+            if (array_key_exists('materials', $data)) {
+                $materials = $data['materials'];
+                unset($data['materials']);
             }
 
             $data['updated_by'] = Auth::id();
@@ -109,6 +133,49 @@ class LayingPlanningDetailService
                 }
             }
 
+            if ($materials !== null) {
+                $existingMaterials = LayingPlanningDetailMaterial::where('laying_planning_detail_id', $id)
+                    ->get()
+                    ->keyBy('laying_planning_detail_type_id');
+
+                $newTypeIds = collect($materials)->pluck('laying_planning_detail_type_id')->toArray();
+
+                $materialsToDelete = $existingMaterials->keys()->diff($newTypeIds);
+                if ($materialsToDelete->isNotEmpty()) {
+                    LayingPlanningDetailMaterial::where('laying_planning_detail_id', $id)
+                        ->whereIn('laying_planning_detail_type_id', $materialsToDelete)
+                        ->delete();
+                }
+
+                foreach ($materials as $material) {
+                    $typeId = $material['laying_planning_detail_type_id'];
+
+                    if ($existingMaterials->has($typeId)) {
+                        $existingRecord = $existingMaterials->get($typeId);
+                        $existingRecord->update([
+                            'value_per_layer' => $material['value_per_layer'],
+                            'unit' => $material['unit'],
+                            'color_id' => $material['color_id'] ?? null,
+                            'fabric_id' => $material['fabric_id'] ?? null,
+                            'properties' => $material['properties'] ?? null,
+                            'updated_by' => Auth::id(),
+                        ]);
+                    } else {
+                        LayingPlanningDetailMaterial::create([
+                            'laying_planning_detail_id' => $id,
+                            'laying_planning_detail_type_id' => $typeId,
+                            'value_per_layer' => $material['value_per_layer'],
+                            'unit' => $material['unit'],
+                            'color_id' => $material['color_id'] ?? null,
+                            'fabric_id' => $material['fabric_id'] ?? null,
+                            'properties' => $material['properties'] ?? null,
+                            'created_by' => Auth::id(),
+                            'updated_by' => Auth::id(),
+                        ]);
+                    }
+                }
+            }
+
             return true;
         });
     }
@@ -122,8 +189,9 @@ class LayingPlanningDetailService
         }
 
         $sizes = $source->sizes;
+        $materials = $source->materials;
 
-        return DB::transaction(function () use ($layingPlanningId, $source, $sizes, $count) {
+        return DB::transaction(function () use ($layingPlanningId, $source, $sizes, $materials, $count) {
             $created = [];
 
             for ($i = 0; $i < $count; $i++) {
@@ -146,6 +214,20 @@ class LayingPlanningDetailService
                         'laying_planning_detail_id' => $detail->id,
                         'size_id' => $size->size_id,
                         'ratio_per_size' => $size->ratio_per_size,
+                    ]);
+                }
+
+                foreach ($materials as $material) {
+                    LayingPlanningDetailMaterial::create([
+                        'laying_planning_detail_id' => $detail->id,
+                        'laying_planning_detail_type_id' => $material->laying_planning_detail_type_id,
+                        'value_per_layer' => $material->value_per_layer,
+                        'unit' => $material->unit,
+                        'color_id' => $material->color_id,
+                        'fabric_id' => $material->fabric_id,
+                        'properties' => $material->properties,
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
                     ]);
                 }
 
