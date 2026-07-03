@@ -19,6 +19,8 @@ class LayingPlanningDetailResource extends JsonResource
             'marker_yard' => $this->marker_yard,
             'marker_inch' => $this->marker_inch,
             'allowance_inch' => $this->allowance_inch,
+            'marker_length' => $this->marker_length,
+            'total_length' => $this->total_length,
             'is_pilot_run' => $this->is_pilot_run,
             'type' => $this->whenLoaded('type', fn() => [
                 'id' => $this->type->id,

@@ -34,6 +34,19 @@ class LayingPlanningDetail extends Model
         'is_pilot_run' => 'boolean',
     ];
 
+    public function getMarkerLengthAttribute(): float
+    {
+        return round(
+            $this->marker_yard + ($this->marker_inch / 36) + ($this->allowance_inch / 36),
+            3
+        );
+    }
+
+    public function getTotalLengthAttribute(): float
+    {
+        return round($this->layer_qty * $this->marker_length, 3);
+    }
+
     public function layingPlanning(): BelongsTo
     {
         return $this->belongsTo(LayingPlanning::class, 'laying_planning_id');
