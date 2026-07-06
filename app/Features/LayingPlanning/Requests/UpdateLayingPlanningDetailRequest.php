@@ -27,7 +27,7 @@ class UpdateLayingPlanningDetailRequest extends FormRequest
             'materials' => ['sometimes', 'array'],
             'materials.*.laying_planning_detail_type_id' => ['required_with:materials', 'uuid', 'exists:laying_planning_detail_types,id'],
             'materials.*.value_per_layer' => ['required_with:materials', 'numeric', 'min:0'],
-            'materials.*.unit' => ['required_with:materials', 'string', 'max:50'],
+            'materials.*.unit' => ['nullable', 'string', 'max:50'],
             'materials.*.color_id' => ['nullable', 'uuid', 'exists:colors,id'],
             'materials.*.fabric_id' => ['nullable', 'uuid', 'exists:fabrics,id'],
             'materials.*.properties' => ['nullable', 'array'],

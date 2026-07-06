@@ -40,14 +40,12 @@ class LayingPlanningDetailResource extends JsonResource
                     'id' => $mat->id,
                     'laying_planning_detail_type_id' => $mat->laying_planning_detail_type_id,
                     'value_per_layer' => $mat->value_per_layer,
+                    'total_value' => round($mat->value_per_layer * $this->layer_qty, 3),
                     'unit' => $mat->unit,
                     'color_id' => $mat->color_id,
                     'fabric_id' => $mat->fabric_id,
                     'properties' => $mat->properties,
-                    'type' => $mat->relationLoaded('type') ? [
-                        'id' => $mat->type?->id,
-                        'detail_type' => $mat->type?->detail_type,
-                    ] : null,
+                    'detail_type' => $mat->relationLoaded('type') ? $mat->type?->detail_type : null,
                     'color_name' => $mat->relationLoaded('color') ? $mat->color?->standard_name : null,
                     'fabric_content' => $mat->relationLoaded('fabric') ? $mat->fabric?->standard_content : null,
                 ])

@@ -6,6 +6,7 @@ use App\Features\LayingPlanning\Repositories\LayingPlanningDetailRepository;
 use App\Features\LayingPlanning\Models\LayingPlanningDetail;
 use App\Features\LayingPlanning\Models\LayingPlanningDetailSize;
 use App\Features\LayingPlanning\Models\LayingPlanningDetailMaterial;
+use App\Features\LayingPlanning\Models\LayingPlanningDetailType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
@@ -39,6 +40,11 @@ class LayingPlanningDetailService
             $materials = $data['materials'] ?? [];
             unset($data['materials']);
 
+            $typeMap = LayingPlanningDetailType::whereIn(
+                'id',
+                collect($materials)->pluck('laying_planning_detail_type_id')
+            )->pluck('detail_type', 'id');
+
             $data['laying_planning_id'] = $layingPlanningId;
             $data['table_number'] = $this->generateNextTableNumber($layingPlanningId);
 
@@ -57,7 +63,10 @@ class LayingPlanningDetailService
                     'laying_planning_detail_id' => $detail->id,
                     'laying_planning_detail_type_id' => $material['laying_planning_detail_type_id'],
                     'value_per_layer' => $material['value_per_layer'],
-                    'unit' => $material['unit'],
+                    'unit' => $this->resolveMaterialUnit(
+                        $material['unit'] ?? null,
+                        $typeMap[$material['laying_planning_detail_type_id']] ?? null
+                    ),
                     'color_id' => $material['color_id'] ?? null,
                     'fabric_id' => $material['fabric_id'] ?? null,
                     'properties' => $material['properties'] ?? null,
@@ -74,6 +83,19 @@ class LayingPlanningDetailService
             ->max('table_number');
 
         return ((int) $max) + 1;
+    }
+
+    private function resolveMaterialUnit(?string $unit, ?string $detailType): string
+    {
+        if ($unit !== null) {
+            return $unit;
+        }
+
+        if ($detailType !== null && config("laying-planning.type_specific_material_units.{$detailType}")) {
+            return config("laying-planning.type_specific_material_units.{$detailType}");
+        }
+
+        return config('laying-planning.default_material_unit', 'yard');
     }
 
     public function update(string $id, array $data): bool
@@ -127,6 +149,11 @@ class LayingPlanningDetailService
             }
 
             if ($materials !== null) {
+                $typeMap = LayingPlanningDetailType::whereIn(
+                    'id',
+                    collect($materials)->pluck('laying_planning_detail_type_id')
+                )->pluck('detail_type', 'id');
+
                 $existingMaterials = LayingPlanningDetailMaterial::where('laying_planning_detail_id', $id)
                     ->get()
                     ->keyBy('laying_planning_detail_type_id');
@@ -143,11 +170,16 @@ class LayingPlanningDetailService
                 foreach ($materials as $material) {
                     $typeId = $material['laying_planning_detail_type_id'];
 
+                    $resolvedUnit = $this->resolveMaterialUnit(
+                        $material['unit'] ?? null,
+                        $typeMap[$material['laying_planning_detail_type_id']] ?? null
+                    );
+
                     if ($existingMaterials->has($typeId)) {
                         $existingRecord = $existingMaterials->get($typeId);
                         $existingRecord->update([
                             'value_per_layer' => $material['value_per_layer'],
-                            'unit' => $material['unit'],
+                            'unit' => $resolvedUnit,
                             'color_id' => $material['color_id'] ?? null,
                             'fabric_id' => $material['fabric_id'] ?? null,
                             'properties' => $material['properties'] ?? null,
@@ -157,7 +189,7 @@ class LayingPlanningDetailService
                             'laying_planning_detail_id' => $id,
                             'laying_planning_detail_type_id' => $typeId,
                             'value_per_layer' => $material['value_per_layer'],
-                            'unit' => $material['unit'],
+                            'unit' => $resolvedUnit,
                             'color_id' => $material['color_id'] ?? null,
                             'fabric_id' => $material['fabric_id'] ?? null,
                             'properties' => $material['properties'] ?? null,
