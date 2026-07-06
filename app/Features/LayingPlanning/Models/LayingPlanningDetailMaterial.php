@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Features\Reference\Models\Color;
 use App\Features\Reference\Models\Fabric;
 use App\Models\User;
+use App\Features\LayingPlanning\Traits\HasBlameable;
 
 class LayingPlanningDetailMaterial extends Model
 {
-    use HasUuids;
+    use HasUuids, HasBlameable;
 
     protected $table = 'laying_planning_detail_materials';
 

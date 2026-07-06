@@ -16,7 +16,10 @@ class LayingPlanningRepository
             'color.aliases',
             'fabric.aliases',
             'sizeDetails',
-            'parts'
+            'parts',
+            'createdBy',
+            'updatedBy',
+            'deletedBy',
         ])->latest()->orderBy('id', 'desc')->get();
     }
 
@@ -33,7 +36,10 @@ class LayingPlanningRepository
             'fabric.aliases',
             'sizeDetails',
             'combineGroup',
-            'parts'
+            'parts',
+            'createdBy',
+            'updatedBy',
+            'deletedBy',
         ]);
 
         if (!empty($search)) {
@@ -70,6 +76,9 @@ class LayingPlanningRepository
             'parts',
             'details.sizes.size',
             'details.type',
+            'createdBy',
+            'updatedBy',
+            'deletedBy',
         ])->find($id);
 
         if ($layingPlanning) {

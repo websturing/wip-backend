@@ -135,6 +135,16 @@ class LayingPlanningResource extends JsonResource
             // --- Timestamps ---
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
+
+            // --- Blameable ---
+            'created_by' => $this->whenLoaded('createdBy', fn() => [
+                'id' => $this->createdBy->id,
+                'name' => $this->createdBy->name,
+            ]),
+            'updated_by' => $this->whenLoaded('updatedBy', fn() => [
+                'id' => $this->updatedBy->id,
+                'name' => $this->updatedBy->name,
+            ]),
         ];
     }
 }

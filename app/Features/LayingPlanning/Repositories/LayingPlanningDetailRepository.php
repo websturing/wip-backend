@@ -9,7 +9,7 @@ class LayingPlanningDetailRepository
 {
     public function getAllByLayingPlanning(string $layingPlanningId): Collection
     {
-        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy'])
+        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy', 'deletedBy'])
             ->where('laying_planning_id', $layingPlanningId)
             ->orderBy('table_number')
             ->get();
@@ -17,13 +17,13 @@ class LayingPlanningDetailRepository
 
     public function findById(string $id): ?LayingPlanningDetail
     {
-        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy'])
+        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy', 'deletedBy'])
             ->find($id);
     }
 
     public function findByIdAndLp(string $id, string $layingPlanningId): ?LayingPlanningDetail
     {
-        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy'])
+        return LayingPlanningDetail::with(['sizes.size', 'materials.type', 'materials.color', 'materials.fabric', 'type', 'createdBy', 'updatedBy', 'deletedBy'])
             ->where('laying_planning_id', $layingPlanningId)
             ->find($id);
     }
@@ -35,11 +35,13 @@ class LayingPlanningDetailRepository
 
     public function update(string $id, array $data): bool
     {
-        return (bool) LayingPlanningDetail::where('id', $id)->update($data);
+        $record = LayingPlanningDetail::findOrFail($id);
+        return $record->update($data);
     }
 
     public function delete(string $id): bool
     {
-        return (bool) LayingPlanningDetail::where('id', $id)->delete();
+        $record = LayingPlanningDetail::findOrFail($id);
+        return $record->delete();
     }
 }

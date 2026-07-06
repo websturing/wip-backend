@@ -4,13 +4,15 @@ namespace App\Features\LayingPlanning\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\User;
+use App\Features\LayingPlanning\Traits\HasBlameable;
 
 class LayingPlanningDetail extends Model
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes, HasBlameable;
 
     protected $table = 'laying_planning_details';
 
@@ -26,6 +28,7 @@ class LayingPlanningDetail extends Model
         'is_pilot_run',
         'created_by',
         'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -75,5 +78,10 @@ class LayingPlanningDetail extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }

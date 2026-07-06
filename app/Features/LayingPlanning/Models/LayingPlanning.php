@@ -12,10 +12,12 @@ use App\Features\Reference\Models\Lot;
 use App\Features\Reference\Models\Color;
 use App\Features\Reference\Models\Fabric;
 use App\Features\Reference\Models\Size;
+use App\Features\LayingPlanning\Traits\HasBlameable;
+use App\Models\User;
 
 class LayingPlanning extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids, SoftDeletes, HasBlameable;
 
     protected $table = 'laying_plannings';
 
@@ -32,6 +34,9 @@ class LayingPlanning extends Model
         'is_combine',
         'laying_planning_combine_id',
         'is_set_item',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -128,6 +133,21 @@ class LayingPlanning extends Model
     public function details(): HasMany
     {
         return $this->hasMany(LayingPlanningDetail::class, 'laying_planning_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }
 
