@@ -5,6 +5,7 @@ use App\Features\LayingPlanning\Controllers\LayingPlanningController;
 use App\Features\LayingPlanning\Controllers\LayingPlanningTypeController;
 use App\Features\LayingPlanning\Controllers\LayingPlanningDetailController;
 use App\Features\LayingPlanning\Controllers\LayingPlanningDetailTypeController;
+use App\Features\LayingPlanning\Controllers\LayingPlanningPdfController;
 
 // ===================== LAYING PLANNING TYPE =====================
 
@@ -33,6 +34,7 @@ Route::prefix('detail-types')->group(function () {
 Route::middleware('permission:laying_planning.read')->group(function() {
     Route::get('/', [LayingPlanningController::class, 'index']);
     Route::get('/{id}', [LayingPlanningController::class, 'show']);
+    Route::get('/{id}/export-pdf', [LayingPlanningPdfController::class, 'exportPdf']);
 });
 
 Route::middleware('permission:laying_planning.create')->group(function() {

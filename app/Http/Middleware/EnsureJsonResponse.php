@@ -15,6 +15,11 @@ class EnsureJsonResponse
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Allow PDF export routes to be opened directly in browser without JSON Accept header
+        if ($request->is('api/*/export-pdf')) {
+            return $next($request);
+        }
+
         if ($request->header('Accept') !== 'application/json') {
             return response()->json([
                 'status' => 'error',

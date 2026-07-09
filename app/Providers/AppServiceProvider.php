@@ -36,5 +36,12 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
         }
+
+        // Register PDF export routes without auth:sanctum (auth handled manually in controller)
+        Route::middleware(['api'])
+            ->prefix('api/layingplanning')
+            ->group(function () {
+                Route::get('/{id}/export-pdf', [\App\Features\LayingPlanning\Controllers\LayingPlanningPdfController::class, 'exportPdf']);
+            });
     }
 }
