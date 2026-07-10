@@ -1,0 +1,846 @@
+[
+    {
+        "tabel_utama": {
+            "id": 4672,
+            "serial_number": "LP-64449-09-PBLNUDQD56COBOW-SWSJ086-02",
+            "gl_id": 1066,
+            "style_id": 1617,
+            "buyer_id": 6,
+            "color_id": 386,
+            "order_qty": 688,
+            "delivery_date": "2024-10-07",
+            "plan_date": "2026-05-07",
+            "fabric_po": "160025322",
+            "fabric_cons_id": 782,
+            "fabric_type_id": 92,
+            "fabric_cons_qty": 10.32,
+            "fabric_cons_desc": null,
+            "remark": null,
+            "part_type": null,
+            "fabric_pattern": null,
+            "laying_planning_type_id": 1,
+            "parent_laying_planning_id": null,
+            "status_print": 1,
+            "created_by": 16,
+            "created_at": "2024-07-29 15:01:51",
+            "updated_at": "2025-01-10 17:11:18",
+            "updated_by": 17,
+            "deleted_by": null,
+            "deleted_at": null
+        },
+        "color": {
+            "id": 386,
+            "color": "PITCH BLACK LONG",
+            "color_code": "PBLNUDQD",
+            "created_at": "2023-08-27 23:39:45",
+            "updated_at": "2023-08-27 23:39:45"
+        },
+        "gls": {
+            "id": 1066,
+            "gl_number": "64449-09",
+            "season": "FA 24",
+            "size_order": "XS-XXL",
+            "is_shipped": 0,
+            "buyer_id": 6,
+            "created_at": "2024-07-25 09:52:04",
+            "updated_at": "2024-07-25 09:52:04"
+        },
+        "buyer": {
+            "id": 6,
+            "name": "KOHL'S",
+            "address": "INTERNATIONAL",
+            "shipment_address": "INTERNATIONAL",
+            "code": "KOHL'S",
+            "created_at": "2023-05-04 15:30:09",
+            "updated_at": "2023-05-04 15:30:09"
+        },
+        "style": {
+            "id": 1617,
+            "style": "WS73J020RSS",
+            "description": "ESSENTIAL MID RISE  LONG LEGGING",
+            "gl_id": 1066,
+            "deleted_at": null,
+            "created_at": "2024-07-25 09:52:04",
+            "updated_at": "2024-07-25 09:52:04"
+        },
+        "tabel_detailss": [
+            {
+                "id": 35744,
+                "no_laying_sheet": "64449-09-001",
+                "table_number": 1,
+                "laying_planning_id": 4672,
+                "layer_qty": 49,
+                "marker_code": "L9",
+                "marker_yard": 9,
+                "marker_inch": 9.72,
+                "marker_length": 9.3,
+                "total_length": 455.7,
+                "total_all_size": 539,
+                "created_at": "2024-07-29 15:02:42",
+                "updated_at": "2024-07-29 15:02:42",
+                "laying_planning_detail_type_id": null,
+                "created_by": null,
+                "updated_by": null,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 35745,
+                "no_laying_sheet": "64449-09-002",
+                "table_number": 2,
+                "laying_planning_id": 4672,
+                "layer_qty": 20,
+                "marker_code": "L10",
+                "marker_yard": 5,
+                "marker_inch": 3.96,
+                "marker_length": 5.14,
+                "total_length": 102.8,
+                "total_all_size": 120,
+                "created_at": "2024-07-29 15:03:06",
+                "updated_at": "2024-07-29 15:06:48",
+                "laying_planning_detail_type_id": null,
+                "created_by": null,
+                "updated_by": null,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 35746,
+                "no_laying_sheet": "64449-09-003",
+                "table_number": 3,
+                "laying_planning_id": 4672,
+                "layer_qty": 7,
+                "marker_code": "L11",
+                "marker_yard": 4,
+                "marker_inch": 19.8,
+                "marker_length": 4.58,
+                "total_length": 32.06,
+                "total_all_size": 42,
+                "created_at": "2024-07-29 15:04:18",
+                "updated_at": "2024-07-29 15:06:52",
+                "laying_planning_detail_type_id": null,
+                "created_by": null,
+                "updated_by": null,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 40184,
+                "no_laying_sheet": "64449-09-004",
+                "table_number": 4,
+                "laying_planning_id": 4672,
+                "layer_qty": 15,
+                "marker_code": "REPLACEMENT",
+                "marker_yard": 2,
+                "marker_inch": 22.9,
+                "marker_length": 2.66,
+                "total_length": 39.9,
+                "total_all_size": 45,
+                "created_at": "2024-10-02 19:23:18",
+                "updated_at": "2024-10-02 19:24:30",
+                "laying_planning_detail_type_id": 7,
+                "created_by": 193,
+                "updated_by": 193,
+                "deleted_by": null,
+                "deleted_at": null
+            }
+        ],
+        "tabel_sizes": [
+            {
+                "id": 36037,
+                "laying_planning_id": 4672,
+                "size_id": 1,
+                "quantity": "16"
+            },
+            {
+                "id": 36038,
+                "laying_planning_id": 4672,
+                "size_id": 2,
+                "quantity": "88"
+            },
+            {
+                "id": 36039,
+                "laying_planning_id": 4672,
+                "size_id": 3,
+                "quantity": "208"
+            },
+            {
+                "id": 36040,
+                "laying_planning_id": 4672,
+                "size_id": 4,
+                "quantity": "136"
+            },
+            {
+                "id": 36041,
+                "laying_planning_id": 4672,
+                "size_id": 5,
+                "quantity": "152"
+            },
+            {
+                "id": 36042,
+                "laying_planning_id": 4672,
+                "size_id": 6,
+                "quantity": "88"
+            }
+        ],
+        "mapped_uuids": {
+            "customer_id_new": "c8cb9740-4467-48c4-86cf-aaab1da943f9",
+            "gl_id_new": "9062ac3d-407e-4873-aa84-276318a5f79a",
+            "lot_id_new": "ae8cc50a-3008-48d4-bbbf-8cea94c74300"
+        }
+    },
+    {
+        "tabel_utama": {
+            "id": 5050,
+            "serial_number": "LP-64806-00-IBJZEOWY10CFRT-S100444-02",
+            "gl_id": 1158,
+            "style_id": 1804,
+            "buyer_id": 8,
+            "color_id": 2182,
+            "order_qty": 396,
+            "delivery_date": "2024-12-12",
+            "plan_date": "2026-03-08",
+            "fabric_po": "160025477",
+            "fabric_cons_id": 844,
+            "fabric_type_id": 494,
+            "fabric_cons_qty": 6.91,
+            "fabric_cons_desc": null,
+            "remark": "Neckline binding 1\/4\" : 0.20yds x 64\" x 332gm (cuttable) -cotton 1x1 rib (Horizontal cut)",
+            "part_type": null,
+            "fabric_pattern": "SOLID",
+            "laying_planning_type_id": 1,
+            "parent_laying_planning_id": null,
+            "status_print": 1,
+            "created_by": 16,
+            "created_at": "2024-08-27 10:22:13",
+            "updated_at": "2026-03-10 16:39:17",
+            "updated_by": 1,
+            "deleted_by": null,
+            "deleted_at": null
+        },
+        "color": {
+            "id": 2182,
+            "color": "INDUSTRIAL BLUE",
+            "color_code": "IBJZEOWY",
+            "created_at": "2024-08-13 08:23:34",
+            "updated_at": "2024-08-13 08:23:34"
+        },
+        "gls": {
+            "id": 1158,
+            "gl_number": "64806-00",
+            "season": "SPR 25",
+            "size_order": "PP-PXL",
+            "is_shipped": 0,
+            "buyer_id": 8,
+            "created_at": "2024-08-27 10:11:24",
+            "updated_at": "2024-08-27 10:11:24"
+        },
+        "buyer": {
+            "id": 8,
+            "name": "MACY",
+            "address": "INTERNATIONAL",
+            "shipment_address": "INTERNATIOANAL",
+            "code": "MACY",
+            "created_at": "2023-05-18 15:02:31",
+            "updated_at": "2023-05-18 16:14:02"
+        },
+        "style": {
+            "id": 1804,
+            "style": "100204834PT",
+            "description": "SLD SS SQNECK TEE",
+            "gl_id": 1158,
+            "deleted_at": null,
+            "created_at": "2024-08-27 10:11:24",
+            "updated_at": "2024-08-27 10:11:24"
+        },
+        "tabel_detailss": [
+            {
+                "id": 37504,
+                "no_laying_sheet": "64806-00-001",
+                "table_number": 1,
+                "laying_planning_id": 5050,
+                "layer_qty": 6,
+                "marker_code": "PILOT RUN",
+                "marker_yard": 2,
+                "marker_inch": 24.12,
+                "marker_length": 2.7,
+                "total_length": 16.2,
+                "total_all_size": 30,
+                "created_at": "2024-08-27 11:38:50",
+                "updated_at": "2024-09-03 08:57:38",
+                "laying_planning_detail_type_id": 1,
+                "created_by": null,
+                "updated_by": 174,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 37505,
+                "no_laying_sheet": "64806-00-002",
+                "table_number": 2,
+                "laying_planning_id": 5050,
+                "layer_qty": 28,
+                "marker_code": "A1",
+                "marker_yard": 6,
+                "marker_inch": 21.6,
+                "marker_length": 6.63,
+                "total_length": 185.64,
+                "total_all_size": 336,
+                "created_at": "2024-08-27 11:39:22",
+                "updated_at": "2024-08-27 11:46:02",
+                "laying_planning_detail_type_id": 1,
+                "created_by": null,
+                "updated_by": null,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 37506,
+                "no_laying_sheet": "64806-00-003",
+                "table_number": 3,
+                "laying_planning_id": 5050,
+                "layer_qty": 6,
+                "marker_code": "A4",
+                "marker_yard": 3,
+                "marker_inch": 23.4,
+                "marker_length": 3.68,
+                "total_length": 22.08,
+                "total_all_size": 42,
+                "created_at": "2024-08-27 11:43:57",
+                "updated_at": "2024-09-04 17:23:23",
+                "laying_planning_detail_type_id": 1,
+                "created_by": null,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 37507,
+                "no_laying_sheet": "64806-00-004",
+                "table_number": 4,
+                "laying_planning_id": 5050,
+                "layer_qty": 6,
+                "marker_code": "NECKLINE BINDING",
+                "marker_yard": 1,
+                "marker_inch": 2,
+                "marker_length": 1.08,
+                "total_length": 6.48,
+                "total_all_size": 0,
+                "created_at": "2024-08-27 11:49:05",
+                "updated_at": "2024-09-04 17:22:48",
+                "laying_planning_detail_type_id": 2,
+                "created_by": null,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 37520,
+                "no_laying_sheet": "64806-00-005",
+                "table_number": 5,
+                "laying_planning_id": 5050,
+                "layer_qty": 5,
+                "marker_code": "NECKLINE BINDING",
+                "marker_yard": 2,
+                "marker_inch": 5,
+                "marker_length": 2.17,
+                "total_length": 10.85,
+                "total_all_size": 0,
+                "created_at": "2024-08-27 13:36:43",
+                "updated_at": "2024-09-04 17:21:41",
+                "laying_planning_detail_type_id": 2,
+                "created_by": null,
+                "updated_by": 16,
+                "deleted_by": 16,
+                "deleted_at": "2024-09-04 17:21:41"
+            }
+        ],
+        "tabel_sizes": [
+            {
+                "id": 38005,
+                "laying_planning_id": 5050,
+                "size_id": 26,
+                "quantity": "24"
+            },
+            {
+                "id": 38006,
+                "laying_planning_id": 5050,
+                "size_id": 27,
+                "quantity": "66"
+            },
+            {
+                "id": 38007,
+                "laying_planning_id": 5050,
+                "size_id": 28,
+                "quantity": "114"
+            },
+            {
+                "id": 38008,
+                "laying_planning_id": 5050,
+                "size_id": 29,
+                "quantity": "120"
+            },
+            {
+                "id": 38009,
+                "laying_planning_id": 5050,
+                "size_id": 30,
+                "quantity": "72"
+            }
+        ],
+        "mapped_uuids": {
+            "customer_id_new": "27dafa71-2f58-498f-b0ab-ba8c01f22e32",
+            "gl_id_new": "808cd456-a645-4afe-8717-24d4d9ca94d6",
+            "lot_id_new": "274e4c5d-46a7-49d9-81f5-df2f98e18080"
+        }
+    },
+    {
+        "tabel_utama": {
+            "id": 5605,
+            "serial_number": "LP-64760-00-WFAWIIREINRLINRL-S108676-01",
+            "gl_id": 1291,
+            "style_id": 2007,
+            "buyer_id": 8,
+            "color_id": 2363,
+            "order_qty": 1206,
+            "delivery_date": "2025-01-09",
+            "plan_date": "2026-01-09",
+            "fabric_po": "160025759",
+            "fabric_cons_id": 861,
+            "fabric_type_id": 360,
+            "fabric_cons_qty": 0.37,
+            "fabric_cons_desc": null,
+            "remark": null,
+            "part_type": null,
+            "fabric_pattern": null,
+            "laying_planning_type_id": 3,
+            "parent_laying_planning_id": 5547,
+            "status_print": 1,
+            "created_by": 16,
+            "created_at": "2024-09-28 08:42:19",
+            "updated_at": "2024-10-02 17:43:33",
+            "updated_by": 193,
+            "deleted_by": null,
+            "deleted_at": null
+        },
+        "color": {
+            "id": 2363,
+            "color": "WHITE FOR AQUA WATER (INTERLINING)",
+            "color_code": "WFAWIIRE",
+            "created_at": "2024-09-13 08:46:40",
+            "updated_at": "2024-09-13 08:49:05"
+        },
+        "gls": {
+            "id": 1291,
+            "gl_number": "64760-00",
+            "season": "SPR 25",
+            "size_order": "XS-XXL",
+            "is_shipped": 0,
+            "buyer_id": 8,
+            "created_at": "2024-09-25 08:37:34",
+            "updated_at": "2024-09-25 08:37:34"
+        },
+        "buyer": {
+            "id": 8,
+            "name": "MACY",
+            "address": "INTERNATIONAL",
+            "shipment_address": "INTERNATIOANAL",
+            "code": "MACY",
+            "created_at": "2023-05-18 15:02:31",
+            "updated_at": "2023-05-18 16:14:02"
+        },
+        "style": {
+            "id": 2007,
+            "style": "100186211MS",
+            "description": "SLD CRVD SWHRT SP TANK",
+            "gl_id": 1291,
+            "deleted_at": null,
+            "created_at": "2024-09-25 08:37:34",
+            "updated_at": "2024-09-25 08:37:34"
+        },
+        "tabel_detailss": [
+            {
+                "id": 39612,
+                "no_laying_sheet": "64760-00-001",
+                "table_number": 1,
+                "laying_planning_id": 5605,
+                "layer_qty": 49,
+                "marker_code": "I1",
+                "marker_yard": 0,
+                "marker_inch": 23.76,
+                "marker_length": 0.69,
+                "total_length": 33.81,
+                "total_all_size": 1127,
+                "created_at": "2024-09-28 08:43:00",
+                "updated_at": "2024-09-28 08:44:55",
+                "laying_planning_detail_type_id": 1,
+                "created_by": 16,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 39613,
+                "no_laying_sheet": "64760-00-002",
+                "table_number": 2,
+                "laying_planning_id": 5605,
+                "layer_qty": 6,
+                "marker_code": "I2",
+                "marker_yard": 0,
+                "marker_inch": 17.64,
+                "marker_length": 0.52,
+                "total_length": 3.12,
+                "total_all_size": 102,
+                "created_at": "2024-09-28 08:43:35",
+                "updated_at": "2024-09-28 08:43:35",
+                "laying_planning_detail_type_id": 1,
+                "created_by": 16,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            }
+        ],
+        "tabel_sizes": [
+            {
+                "id": 42602,
+                "laying_planning_id": 5605,
+                "size_id": 1,
+                "quantity": "48"
+            },
+            {
+                "id": 42603,
+                "laying_planning_id": 5605,
+                "size_id": 2,
+                "quantity": "132"
+            },
+            {
+                "id": 42604,
+                "laying_planning_id": 5605,
+                "size_id": 3,
+                "quantity": "276"
+            },
+            {
+                "id": 42605,
+                "laying_planning_id": 5605,
+                "size_id": 4,
+                "quantity": "342"
+            },
+            {
+                "id": 42606,
+                "laying_planning_id": 5605,
+                "size_id": 5,
+                "quantity": "300"
+            },
+            {
+                "id": 42607,
+                "laying_planning_id": 5605,
+                "size_id": 6,
+                "quantity": "108"
+            }
+        ],
+        "mapped_uuids": {
+            "customer_id_new": "27dafa71-2f58-498f-b0ab-ba8c01f22e32",
+            "gl_id_new": "d34c1bab-894c-4703-a0bb-df5f265b2118",
+            "lot_id_new": "ddfc7a5b-5a4b-4f07-bfc5-313b35cec09f"
+        }
+    },
+    {
+        "tabel_utama": {
+            "id": 5606,
+            "serial_number": "LP-64760-00-WFBWIPHDINRLINRL-S108632-01",
+            "gl_id": 1291,
+            "style_id": 2007,
+            "buyer_id": 8,
+            "color_id": 2364,
+            "order_qty": 1500,
+            "delivery_date": "2025-01-09",
+            "plan_date": "2026-01-09",
+            "fabric_po": "160025759",
+            "fabric_cons_id": 861,
+            "fabric_type_id": 360,
+            "fabric_cons_qty": 0.37,
+            "fabric_cons_desc": null,
+            "remark": null,
+            "part_type": null,
+            "fabric_pattern": null,
+            "laying_planning_type_id": 3,
+            "parent_laying_planning_id": 5548,
+            "status_print": 1,
+            "created_by": 16,
+            "created_at": "2024-09-28 08:56:16",
+            "updated_at": "2024-10-02 17:43:36",
+            "updated_by": 193,
+            "deleted_by": null,
+            "deleted_at": null
+        },
+        "color": {
+            "id": 2364,
+            "color": "WHITE FOR BRIGHT WHITE (INTERLINING)",
+            "color_code": "WFBWIPHD",
+            "created_at": "2024-09-13 08:48:50",
+            "updated_at": "2024-09-13 08:48:50"
+        },
+        "gls": {
+            "id": 1291,
+            "gl_number": "64760-00",
+            "season": "SPR 25",
+            "size_order": "XS-XXL",
+            "is_shipped": 0,
+            "buyer_id": 8,
+            "created_at": "2024-09-25 08:37:34",
+            "updated_at": "2024-09-25 08:37:34"
+        },
+        "buyer": {
+            "id": 8,
+            "name": "MACY",
+            "address": "INTERNATIONAL",
+            "shipment_address": "INTERNATIOANAL",
+            "code": "MACY",
+            "created_at": "2023-05-18 15:02:31",
+            "updated_at": "2023-05-18 16:14:02"
+        },
+        "style": {
+            "id": 2007,
+            "style": "100186211MS",
+            "description": "SLD CRVD SWHRT SP TANK",
+            "gl_id": 1291,
+            "deleted_at": null,
+            "created_at": "2024-09-25 08:37:34",
+            "updated_at": "2024-09-25 08:37:34"
+        },
+        "tabel_detailss": [
+            {
+                "id": 39618,
+                "no_laying_sheet": "64760-00-001",
+                "table_number": 1,
+                "laying_planning_id": 5606,
+                "layer_qty": 61,
+                "marker_code": "I1",
+                "marker_yard": 0,
+                "marker_inch": 23.76,
+                "marker_length": 0.69,
+                "total_length": 42.09,
+                "total_all_size": 1403,
+                "created_at": "2024-09-28 08:56:44",
+                "updated_at": "2024-09-28 08:58:15",
+                "laying_planning_detail_type_id": 1,
+                "created_by": 16,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 39619,
+                "no_laying_sheet": "64760-00-002",
+                "table_number": 2,
+                "laying_planning_id": 5606,
+                "layer_qty": 6,
+                "marker_code": "I3",
+                "marker_yard": 0,
+                "marker_inch": 20.52,
+                "marker_length": 0.6,
+                "total_length": 3.6,
+                "total_all_size": 120,
+                "created_at": "2024-09-28 08:57:09",
+                "updated_at": "2024-09-28 08:58:35",
+                "laying_planning_detail_type_id": 1,
+                "created_by": 16,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            }
+        ],
+        "tabel_sizes": [
+            {
+                "id": 42680,
+                "laying_planning_id": 5606,
+                "size_id": 1,
+                "quantity": "60"
+            },
+            {
+                "id": 42681,
+                "laying_planning_id": 5606,
+                "size_id": 2,
+                "quantity": "162"
+            },
+            {
+                "id": 42682,
+                "laying_planning_id": 5606,
+                "size_id": 3,
+                "quantity": "348"
+            },
+            {
+                "id": 42683,
+                "laying_planning_id": 5606,
+                "size_id": 4,
+                "quantity": "426"
+            },
+            {
+                "id": 42684,
+                "laying_planning_id": 5606,
+                "size_id": 5,
+                "quantity": "372"
+            },
+            {
+                "id": 42685,
+                "laying_planning_id": 5606,
+                "size_id": 6,
+                "quantity": "132"
+            }
+        ],
+        "mapped_uuids": {
+            "customer_id_new": "27dafa71-2f58-498f-b0ab-ba8c01f22e32",
+            "gl_id_new": "d34c1bab-894c-4703-a0bb-df5f265b2118",
+            "lot_id_new": "ddfc7a5b-5a4b-4f07-bfc5-313b35cec09f"
+        }
+    },
+    {
+        "tabel_utama": {
+            "id": 5607,
+            "serial_number": "LP-64760-00-CFDBIPFVINRLINRL-S108616-01",
+            "gl_id": 1291,
+            "style_id": 2007,
+            "buyer_id": 8,
+            "color_id": 2365,
+            "order_qty": 1206,
+            "delivery_date": "2025-01-09",
+            "plan_date": "2026-01-09",
+            "fabric_po": "160025759",
+            "fabric_cons_id": 861,
+            "fabric_type_id": 360,
+            "fabric_cons_qty": 0.37,
+            "fabric_cons_desc": null,
+            "remark": null,
+            "part_type": null,
+            "fabric_pattern": null,
+            "laying_planning_type_id": 2,
+            "parent_laying_planning_id": 5549,
+            "status_print": 1,
+            "created_by": 16,
+            "created_at": "2024-09-28 09:03:36",
+            "updated_at": "2024-10-02 17:43:38",
+            "updated_by": 193,
+            "deleted_by": null,
+            "deleted_at": null
+        },
+        "color": {
+            "id": 2365,
+            "color": "CHARCOAL FOR DEEP BLACK (INTERLINING)",
+            "color_code": "CFDBIPFV",
+            "created_at": "2024-09-13 08:49:26",
+            "updated_at": "2024-09-13 08:49:26"
+        },
+        "gls": {
+            "id": 1291,
+            "gl_number": "64760-00",
+            "season": "SPR 25",
+            "size_order": "XS-XXL",
+            "is_shipped": 0,
+            "buyer_id": 8,
+            "created_at": "2024-09-25 08:37:34",
+            "updated_at": "2024-09-25 08:37:34"
+        },
+        "buyer": {
+            "id": 8,
+            "name": "MACY",
+            "address": "INTERNATIONAL",
+            "shipment_address": "INTERNATIOANAL",
+            "code": "MACY",
+            "created_at": "2023-05-18 15:02:31",
+            "updated_at": "2023-05-18 16:14:02"
+        },
+        "style": {
+            "id": 2007,
+            "style": "100186211MS",
+            "description": "SLD CRVD SWHRT SP TANK",
+            "gl_id": 1291,
+            "deleted_at": null,
+            "created_at": "2024-09-25 08:37:34",
+            "updated_at": "2024-09-25 08:37:34"
+        },
+        "tabel_detailss": [
+            {
+                "id": 39626,
+                "no_laying_sheet": "64760-00-001",
+                "table_number": 1,
+                "laying_planning_id": 5607,
+                "layer_qty": 49,
+                "marker_code": "I1",
+                "marker_yard": 0,
+                "marker_inch": 23.76,
+                "marker_length": 0.69,
+                "total_length": 33.81,
+                "total_all_size": 1127,
+                "created_at": "2024-09-28 09:04:08",
+                "updated_at": "2024-09-28 09:04:08",
+                "laying_planning_detail_type_id": 1,
+                "created_by": 16,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            },
+            {
+                "id": 39627,
+                "no_laying_sheet": "64760-00-002",
+                "table_number": 2,
+                "laying_planning_id": 5607,
+                "layer_qty": 6,
+                "marker_code": "I2",
+                "marker_yard": 0,
+                "marker_inch": 17.64,
+                "marker_length": 0.52,
+                "total_length": 3.12,
+                "total_all_size": 102,
+                "created_at": "2024-09-28 09:04:36",
+                "updated_at": "2024-09-28 09:04:36",
+                "laying_planning_detail_type_id": 1,
+                "created_by": 16,
+                "updated_by": 16,
+                "deleted_by": null,
+                "deleted_at": null
+            }
+        ],
+        "tabel_sizes": [
+            {
+                "id": 42626,
+                "laying_planning_id": 5607,
+                "size_id": 1,
+                "quantity": "48"
+            },
+            {
+                "id": 42627,
+                "laying_planning_id": 5607,
+                "size_id": 2,
+                "quantity": "132"
+            },
+            {
+                "id": 42628,
+                "laying_planning_id": 5607,
+                "size_id": 3,
+                "quantity": "276"
+            },
+            {
+                "id": 42629,
+                "laying_planning_id": 5607,
+                "size_id": 4,
+                "quantity": "342"
+            },
+            {
+                "id": 42630,
+                "laying_planning_id": 5607,
+                "size_id": 5,
+                "quantity": "300"
+            },
+            {
+                "id": 42631,
+                "laying_planning_id": 5607,
+                "size_id": 6,
+                "quantity": "108"
+            }
+        ],
+        "mapped_uuids": {
+            "customer_id_new": "27dafa71-2f58-498f-b0ab-ba8c01f22e32",
+            "gl_id_new": "d34c1bab-894c-4703-a0bb-df5f265b2118",
+            "lot_id_new": "ddfc7a5b-5a4b-4f07-bfc5-313b35cec09f"
+        }
+    }
+]
