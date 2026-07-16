@@ -11,6 +11,7 @@ use App\Features\Wip\Models\WipExportQuantityHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use App\Helpers\SizeHelper;
 
 class WipReportController extends Controller
 {
@@ -250,15 +251,7 @@ class WipReportController extends Controller
             }
         }
 
-        $sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL'];
-        usort($sizes, function($a, $b) use ($sizeOrder) {
-            $posA = array_search(strtoupper($a), $sizeOrder);
-            $posB = array_search(strtoupper($b), $sizeOrder);
-            if ($posA === false && $posB === false) return strcmp($a, $b);
-            if ($posA === false) return 1;
-            if ($posB === false) return -1;
-            return $posA - $posB;
-        });
+        $sizes = SizeHelper::sortArray($sizes);
 
         // Construct Separate Reports per Color
         $reports = [];

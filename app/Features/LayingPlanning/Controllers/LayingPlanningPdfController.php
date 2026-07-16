@@ -7,6 +7,7 @@ use App\Features\LayingPlanning\Services\LayingPlanningService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
+use App\Helpers\SizeHelper;
 
 class LayingPlanningPdfController extends Controller
 {
@@ -43,6 +44,19 @@ class LayingPlanningPdfController extends Controller
 
         $sizes = $planning->sizeDetails ?? collect();
         $details = $planning->details ?? collect();
+
+        // 1. Urutkan details berdasarkan tanggal dibuat (yang paling dulu)
+        $details = $details->sortBy('created_at')->values();
+
+        // 2. Urutkan sizes dari terkecil ke terbesar menggunakan SizeHelper
+        $sizes = SizeHelper::sortCollection($sizes, 'size');
+
+        // Pastikan juga setiap ukuran di dalam detail ikut terurut
+        foreach ($details as $detail) {
+            if (isset($detail->sizes)) {
+                $detail->setRelation('sizes', SizeHelper::sortCollection($detail->sizes, 'size.size'));
+            }
+        }
 
         $pdf = Pdf::loadView('pdf.laying-planning-report', [
             'data' => $planning,
